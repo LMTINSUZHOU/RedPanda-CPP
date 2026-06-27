@@ -1446,7 +1446,6 @@ void CodeCompletionListItemDelegate::paint(QPainter *painter, const QStyleOption
             painter->setPen(normalColor);
             painter->setFont(normalFont);
             painter->drawText(x,y,t);
-            x+=painter->fontMetrics().horizontalAdvance(t);
         }
         painter->restore();
     } else {

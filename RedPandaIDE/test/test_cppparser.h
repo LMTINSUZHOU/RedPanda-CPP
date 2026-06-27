@@ -14,6 +14,7 @@ private slots:
     void init_parser();
     void test_parse_var();
     void test_parse_vars();
+    void test_eval_pair_members();
 protected:
     std::shared_ptr<CppParser> mParser;
 };

@@ -2,6 +2,22 @@
 #include "src/parser/cppparser.h"
 #include "test_cppparser.h"
 
+namespace {
+
+int countRealStatements(const StatementMap& statements)
+{
+    int count = 0;
+    for (const PStatement& statement : statements) {
+        if (statement->properties.testFlag(StatementProperty::DummyStatement))
+            continue;
+        count++;
+        count += countRealStatements(statement->children);
+    }
+    return count;
+}
+
+}
+
 TestCppParser::TestCppParser(QObject *parent):
     QObject{parent}
 {
@@ -22,7 +38,7 @@ void TestCppParser::test_parse_var()
            return true;
                                 });
     CppParser::parseFileBlocking(mParser,"text.cpp",false,"");
-    QCOMPARE(mParser->statementList().count(),1);
+    QCOMPARE(countRealStatements(mParser->statementList().childrenStatements()),1);
     PStatement statement = mParser->findStatement("xxx");
     QVERIFY(statement!=nullptr);
     QCOMPARE(statement->fullName,"xxx");
@@ -290,4 +306,37 @@ void TestCppParser::test_parse_vars()
     QCOMPARE(statement->type,"static const std::string (*)");
     QCOMPARE(statement->args,"[5]");
 
+}
+
+void TestCppParser::test_eval_pair_members()
+{
+    init_parser();
+    mParser->setOnGetFileStream([](const QString& filename, QStringList& buffer){
+        Q_UNUSED(filename);
+        buffer=QStringList({
+                               "std::pair<int, double> p;"
+                           });
+           return true;
+                                });
+    CppParser::parseFileBlocking(mParser,"pair.cpp",false,"");
+
+    PStatement pairStatement = mParser->findStatement("p");
+    QVERIFY(pairStatement != nullptr);
+    QCOMPARE(pairStatement->type,"std::pair<int, double>");
+
+    QStringList expression = {"p"};
+    PEvalStatement evalStatement = mParser->evalExpression("pair.cpp", expression, PStatement());
+    QVERIFY(evalStatement != nullptr);
+    QCOMPARE(evalStatement->baseType,"std::pair");
+    QCOMPARE(evalStatement->templateParams,"<int, double>");
+
+    expression = {"p", ".", "first"};
+    evalStatement = mParser->evalExpression("pair.cpp", expression, PStatement());
+    QVERIFY(evalStatement != nullptr);
+    QCOMPARE(evalStatement->baseType,"int");
+
+    expression = {"p", ".", "second"};
+    evalStatement = mParser->evalExpression("pair.cpp", expression, PStatement());
+    QVERIFY(evalStatement != nullptr);
+    QCOMPARE(evalStatement->baseType,"double");
 }

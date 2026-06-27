@@ -148,6 +148,9 @@
       </item>
       <item>
        <widget class="QToolButton" name="btnReload">
+        <property name="toolTip">
+         <string>Reload current theme</string>
+        </property>
         <property name="text">
          <string>Reload</string>
         </property>

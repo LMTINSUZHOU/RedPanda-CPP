@@ -74,6 +74,7 @@ CppParser::CppParser() : QObject{nullptr},
     mEnabled = true;
 
     internalClear();
+    initSyntheticSTLTypes();
 
     //mNamespaces;
     //mBlockBeginSkips;
@@ -1230,6 +1231,7 @@ void CppParser::resetParser()
         mClassInheritances.clear();
         mPreprocessor.clear();
         mTokenizer.clear();
+        initSyntheticSTLTypes();
     }
 }
 
@@ -5529,8 +5531,19 @@ PEvalStatement CppParser::doEvalTerm(const QString &fileName,
                     break;
                 case StatementKind::Variable:
                 case StatementKind::Parameter:
-                    result = doCreateEvalVariable(fileName,statement, previousResult?previousResult->templateParams:"",scope);
+                {
+                    QString baseTemplateParams;
+                    if (previousResult) {
+                        baseTemplateParams = previousResult->templateParams;
+                        if (baseTemplateParams.isEmpty())
+                            baseTemplateParams = previousResult->definitionString;
+                        if (baseTemplateParams.isEmpty() && previousResult->baseStatement)
+                            baseTemplateParams = previousResult->baseStatement->type
+                                    + previousResult->baseStatement->args;
+                    }
+                    result = doCreateEvalVariable(fileName,statement,baseTemplateParams,scope);
                     break;
+                }
                 case StatementKind::Class:
                     statement = doFindNoTemplateSpecializationClass(statement);
                     [[fallthrough]];
@@ -5875,6 +5888,7 @@ PEvalStatement CppParser::doCreateEvalVariable(
     QString baseType;
     int pointerLevel=0;
     QString templateParams;
+    QString pairTemplateParams = baseTemplateParams;
     PStatement typeStatement;
     PStatement effectiveTypeStatement;
     //todo: ugly implementation for std::pair
@@ -5882,7 +5896,7 @@ PEvalStatement CppParser::doCreateEvalVariable(
         effectiveTypeStatement = doParseEvalTypeInfo(
                 fileName,
                 scope,
-                doFindFirstTemplateParamOf(fileName,baseTemplateParams,scope),
+                doFindFirstTemplateParamOf(fileName,pairTemplateParams,scope),
                 baseType,
                 typeStatement,
                 pointerLevel,
@@ -5891,7 +5905,7 @@ PEvalStatement CppParser::doCreateEvalVariable(
         effectiveTypeStatement = doParseEvalTypeInfo(
                 fileName,
                 scope,
-                doFindTemplateParamOf(fileName,baseTemplateParams,1,scope),
+                doFindTemplateParamOf(fileName,pairTemplateParams,1,scope),
                 baseType,
                 typeStatement,
                 pointerLevel,
@@ -6023,7 +6037,8 @@ PStatement CppParser::doParseEvalTypeInfo(
         if (bracketLevel == 0 && templateLevel ==0) {
             if (token == "*")
                 pointerLevel++;
-            else if (syntaxer.getTokenAttribute()->tokenType() == QSynedit::TokenType::Identifier) {
+            else if (syntaxer.getTokenAttribute()->tokenType() == QSynedit::TokenType::Identifier
+                     || mCppTypeKeywords.contains(token)) {
                 baseType += token;
             } else if (token == "[") {
                 pointerLevel++;
@@ -6079,7 +6094,8 @@ PStatement CppParser::doParseEvalTypeInfo(
             if (bracketLevel == 0 && templateLevel ==0) {
                 if (token == "*")
                     pointerLevel++;
-                else if (syntaxer.getTokenAttribute()->tokenType() == QSynedit::TokenType::Identifier) {
+                else if (syntaxer.getTokenAttribute()->tokenType() == QSynedit::TokenType::Identifier
+                         || mCppTypeKeywords.contains(token)) {
                     baseType += token;
                 } else if (token == "[") {
                     pointerLevel++;
@@ -6240,6 +6256,7 @@ void CppParser::scanMethodArgs(const PStatement& functionStatement, int argStart
     int i = paramStart ; // assume it starts with ( and ends with )
     // Keep going and stop on top of the variable name
     QStringList words;
+    int templateDepth = 0;
     while (i < argEnd) {
         if (mTokenizer[i]->text=='('
                 && mTokenizer[i]->matchIndex+1<argEnd
@@ -6279,9 +6296,31 @@ void CppParser::scanMethodArgs(const PStatement& functionStatement, int argStart
                 words.append(mTokenizer[i]->text);
             i++;
         } else if (mTokenizer[i]->text==',') {
-           addMethodParameterStatement(words,mTokenizer[i]->line,functionStatement);
-           i++;
-           words.clear();
+            if (templateDepth > 0) {
+                words.append(mTokenizer[i]->text);
+                i++;
+            } else {
+                addMethodParameterStatement(words,mTokenizer[i]->line,functionStatement);
+                i++;
+                words.clear();
+            }
+        } else if (mTokenizer[i]->text=='<') {
+            templateDepth++;
+            words.append(mTokenizer[i]->text);
+            i++;
+        } else if (mTokenizer[i]->text==">>") {
+            if (templateDepth >= 2)
+                templateDepth -= 2;
+            else if (templateDepth >= 1)
+                templateDepth--;
+            words.append(mTokenizer[i]->text);
+            i++;
+        } else if (mTokenizer[i]->text=='>') {
+            if (templateDepth > 0) {
+                templateDepth--;
+                words.append(mTokenizer[i]->text);
+            }
+            i++;
         } else if (isIdentifier(mTokenizer[i]->text)) {
             // identifier
             int lastIdx=words.count()-1;
@@ -6764,17 +6803,45 @@ int CppParser::skipAssignment(int index, int maxIndex)
 {
     int startIndex=index;
     bool stop=false;
+    int templateDepth = 0;
     while (index<maxIndex && !stop) {
         switch(mTokenizer[index]->text[0].unicode()) {
         case ';':
-        case ',':
         case '}':
-        case ')':
             stop=true;
+            break;
+        case ')':
+            if (templateDepth == 0)
+                stop=true;
+            else
+                index++;
+            break;
+        case ',':
+            if (templateDepth == 0)
+                stop=true;
+            else
+                index++;
             break;
         case '{':
         case '(':
             index = mTokenizer[index]->matchIndex+1;
+            break;
+        case '<':
+            templateDepth++;
+            index++;
+            break;
+        case '>':
+            if (mTokenizer[index]->text == ">>") {
+                if (templateDepth >= 2)
+                    templateDepth -= 2;
+                else if (templateDepth >= 1)
+                    templateDepth--;
+                index++;
+            } else {
+                if (templateDepth > 0)
+                    templateDepth--;
+                index++;
+            }
             break;
         default:
             index++;
@@ -6865,6 +6932,71 @@ bool CppParser::sharedByFiles() const
 void CppParser::setSharedByFiles(bool newSharedByFiles)
 {
     mSharedByFiles = newSharedByFiles;
+}
+
+void CppParser::initSyntheticSTLTypes()
+{
+    PStatement stdNs = doFindStatement("std");
+    if (!stdNs) {
+        stdNs = addStatement(
+            PStatement(),
+            QString(),
+            QString(),
+            "std",
+            QString(),
+            QString(),
+            QString(),
+            0,
+            StatementKind::Namespace,
+            StatementScope::Global,
+            StatementAccessibility::None,
+            StatementProperty::HasDefinition | StatementProperty::DummyStatement);
+    }
+
+    if (findMemberOfStatement("pair", stdNs))
+        return;
+
+    PStatement pairClass = addStatement(
+        stdNs,
+        QString(),
+        QString(),
+        "pair",
+        "<T1,T2>",
+        "<typename T1, typename T2>",
+        QString(),
+        0,
+        StatementKind::Class,
+        StatementScope::Global,
+        StatementAccessibility::Public,
+        StatementProperty::HasDefinition | StatementProperty::DummyStatement);
+
+    addStatement(
+        pairClass,
+        QString(),
+        "T1",
+        "first",
+        QString(),
+        QString(),
+        QString(),
+        0,
+        StatementKind::Variable,
+        StatementScope::ClassLocal,
+        StatementAccessibility::Public,
+        StatementProperty::HasDefinition | StatementProperty::DummyStatement);
+
+    addStatement(
+        pairClass,
+        QString(),
+        "T2",
+        "second",
+        QString(),
+        QString(),
+        QString(),
+        0,
+        StatementKind::Variable,
+        StatementScope::ClassLocal,
+        StatementAccessibility::Public,
+        StatementProperty::HasDefinition | StatementProperty::DummyStatement);
 }
 
 void CppParser::parseFileBlocking(PCppParser parser, const QString &fileName, bool inProject, const QString &contextFilename, bool onlyIfNotParsed, bool updateView)
@@ -7047,4 +7179,3 @@ void CppParser::parseFileListNonBlocking(PCppParser parser, bool updateView)
     CppFileListParserThread *thread = new CppFileListParserThread(parser,updateView);
     thread->start();
 }
-

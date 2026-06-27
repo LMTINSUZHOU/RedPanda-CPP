@@ -50,6 +50,7 @@
 #include "ui_mainwindow.h"
 #include "editormanager.h"
 #include "editor.h"
+#include "widgets/terminal/terminalwidget.h"
 #include "systemconsts.h"
 #include "settings.h"
 #include "qsynedit/constants.h"
@@ -529,6 +530,11 @@ MainWindow::MainWindow(QWidget *parent)
     //applySettings();
     applyUISettings();
     initDocks();
+
+    // Terminal panel
+    mTerminalWidget = new TerminalWidget(this);
+    ui->tabMessages->addTab(mTerminalWidget, tr("Terminal"));
+
     updateProjectView();
     updateEditorActions();
     updateCaretActions();
@@ -1601,7 +1607,7 @@ void MainWindow::rebuildOpenedFileHisotryMenu()
             QString filename = record->filename;
             //menu takes the ownership
             QAction* action = new QAction(filename,mMenuRecentFiles);
-            connect(action, &QAction::triggered, [filename,this](bool){
+            connect(action, &QAction::triggered, action, [filename,this](bool){
                 openFile(filename);
             });
             mMenuRecentFiles->addAction(action);
@@ -1609,7 +1615,7 @@ void MainWindow::rebuildOpenedFileHisotryMenu()
         mMenuRecentFiles->addSeparator();
         //menu takes the ownership
         QAction *action = new QAction(tr("Clear History"),mMenuRecentFiles);
-        connect(action, &QAction::triggered, [this](bool){
+        connect(action, &QAction::triggered, action, [this](bool){
             mVisitHistoryManager->clearFiles();
         });
         mMenuRecentFiles->addAction(action);
@@ -1623,7 +1629,7 @@ void MainWindow::rebuildOpenedFileHisotryMenu()
             QString filename = record->filename;
             //menu takes the ownership
             QAction* action = new QAction(filename,mMenuRecentProjects);
-            connect(action, &QAction::triggered, [filename,this](bool){
+            connect(action, &QAction::triggered, action, [filename,this](bool){
                 openProject(filename);
             });
             mMenuRecentProjects->addAction(action);
@@ -1631,7 +1637,7 @@ void MainWindow::rebuildOpenedFileHisotryMenu()
         mMenuRecentProjects->addSeparator();
         //menu takes the ownership
         QAction *action = new QAction(tr("Clear History"),mMenuRecentProjects);
-        connect(action, &QAction::triggered, [this](bool){
+        connect(action, &QAction::triggered, action, [this](bool){
             mVisitHistoryManager->clearProjects();
         });
         mMenuRecentProjects->addAction(action);
@@ -3698,6 +3704,7 @@ void MainWindow::updateTools()
         foreach (const PToolItem& item, mToolsManager->tools()) {
             QAction* action = createGlobalAction(item->title,"tool-"+item->id, tr("Tools"));
             connect(action, &QAction::triggered,
+                    action,
                     [item,this] (){
                 executeTool(item);
             });
@@ -3837,6 +3844,7 @@ void MainWindow::buildEncodingMenu()
         menuCharsets->addMenu(menuLang);
         //QList<PCharsetInfo> charInfos = pCharsetInfoManager->findCharsetsByLanguageName(langName);
         connect(menuLang,&QMenu::aboutToShow,
+                menuLang,
                 [langName,menuLang,this]() {
             menuLang->clear();
             Editor* editor = mEditorManager->getEditor();
@@ -3847,6 +3855,7 @@ void MainWindow::buildEncodingMenu()
                 if (editor)
                     action->setChecked(info->name == editor->editorEncoding());
                 connect(action, &QAction::triggered,
+                        action,
                         [info,this](){
                     Editor * editor = mEditorManager->getEditor();
                     if (editor == nullptr)
@@ -4382,6 +4391,7 @@ void MainWindow::onLstProblemSetContextMenu(const QPoint &pos)
             menuSetAnswer->addAction(action);
         }
         connect(actionGroup, &QActionGroup::triggered,
+                actionGroup,
                 [problem,this](QAction* action) {
             if (action->text().compare(problem->answerProgram(), PATH_SENSITIVITY)
                     !=0)
@@ -4394,6 +4404,7 @@ void MainWindow::onLstProblemSetContextMenu(const QPoint &pos)
         });
         QAction * action = new QAction(tr("select other file..."),menuSetAnswer);
         connect(action, &QAction::triggered,
+                action,
                 [problem,this](){
             QString filename = QFileDialog::getOpenFileName(
                         this,
@@ -4666,6 +4677,7 @@ void MainWindow::onShowInsertCodeSnippetMenu()
         }
         QAction * action = mMenuInsertCodeSnippet->addAction(snippet->caption);
         connect(action, &QAction::triggered,
+                action,
                 [snippet,this](){
             Editor * editor = mEditorManager->getEditor();
             if (editor) {
@@ -8085,6 +8097,7 @@ void MainWindow::backupMenuForEditor(QMenu *menu, QList<QAction *> &backup)
     }
     menu->clear();
     connect(menu,&QMenu::aboutToShow,
+            menu,
             [menu, backup] {
         foreach (QAction* action, backup) {
             if (action->isSeparator()) {
@@ -8834,7 +8847,7 @@ void MainWindow::on_actionC_C_Reference_triggered()
         return;
     }
     if (pSettings->environment().language()=="zh_CN") {
-        QDesktopServices::openUrl(QUrl("https://zh.cppreference.com/w/cpp"));
+        QDesktopServices::openUrl(QUrl("https://cppreference.cn/w/cpp"));
     } else {
         QDesktopServices::openUrl(QUrl("https://en.cppreference.com/w/cpp"));
     }
@@ -9142,7 +9155,7 @@ void MainWindow::on_actionC_Reference_triggered()
         return;
     }
     if (pSettings->environment().language()=="zh_CN") {
-        QDesktopServices::openUrl(QUrl("https://zh.cppreference.com/w/c"));
+        QDesktopServices::openUrl(QUrl("https://cppreference.cn/w/c"));
     } else {
         QDesktopServices::openUrl(QUrl("https://en.cppreference.com/w/c"));
     }
@@ -10806,4 +10819,3 @@ OJProblemSetModel *MainWindow::getOJProblemSetModel() const
 {
     return mOJProblemSetModel;
 }
-

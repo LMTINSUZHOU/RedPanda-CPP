@@ -63,7 +63,7 @@ jobs:
           xmake-version: '3.0.7'
 
       - name: Setup Qt
-        uses: jurplel/install-qt-action@v5
+        uses: jurplel/install-qt-action@v4.3.1
         with:
           version: '5.15.2'
           host: windows

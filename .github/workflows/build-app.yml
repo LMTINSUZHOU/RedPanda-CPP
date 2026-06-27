@@ -38,7 +38,7 @@ jobs:
       PLATFORM: linux/amd64
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -47,7 +47,7 @@ jobs:
           ${{ env.CONTAINER_COMMAND }} ./packages/linux/01-in-docker.sh
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Linux static ${{ matrix.arch }}
           path: dist/*
@@ -57,12 +57,12 @@ jobs:
     runs-on: macos-14
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Setup
-        uses: jurplel/install-qt-action@v4
+        uses: jurplel/install-qt-action@v5
         with:
           version: '6.11.0'
           host: mac
@@ -76,7 +76,7 @@ jobs:
           ./packages/macos/build.sh --qt-dir $RUNNER_WORKSPACE/Qt/6.11.0/macos
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macOS
           path: dist/*.tar.xz
@@ -93,7 +93,7 @@ jobs:
         shell: msys2 {0}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -108,7 +108,7 @@ jobs:
           ./packages/mingw/build-xp.sh -p ${{ matrix.profile }}
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Windows NT 5.x - profile=${{ matrix.profile }}
           path: dist/*
@@ -141,12 +141,12 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Setup Qt
-        uses: jurplel/install-qt-action@v4
+        uses: jurplel/install-qt-action@v5
         with:
           version: ${{ matrix.qt_version }}
           host: ${{ matrix.qt_host }}
@@ -163,7 +163,7 @@ jobs:
           ./packages/msvc/build.ps1 -QtDir "$env:RUNNER_WORKSPACE/Qt/${{ matrix.qt_version }}/${{ matrix.qt_dir }}"
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Windows MSVC ${{ matrix.arch }} (Qt ${{ matrix.qt_version }})
           path: dist/

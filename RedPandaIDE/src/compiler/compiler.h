@@ -75,6 +75,7 @@ protected:
     virtual QStringList getCppGccImportStdSources(bool checkSyntax);
     virtual QStringList getCCompileArguments(bool checkSyntax);
     virtual QStringList getCppCompileArguments(bool checkSyntax);
+    virtual QStringList getBuiltinIncludeArguments();
     virtual QStringList getCIncludeArguments();
     virtual QStringList getProjectIncludeArguments();
     virtual QStringList getCppIncludeArguments();

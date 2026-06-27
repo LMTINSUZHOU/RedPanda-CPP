@@ -43,7 +43,7 @@ public:
 
 
 private slots:
-    void on_chkGutterOnlyMonospacedFonts_stateChanged(int arg1);
+    void on_chkGutterOnlyMonospacedFonts_toggled(bool checked);
     void on_btnAddFont_clicked();
     void on_btnRemoveFont_clicked();
     void on_btnModifyFont_clicked();

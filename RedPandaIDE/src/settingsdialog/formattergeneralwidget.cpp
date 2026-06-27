@@ -322,10 +322,10 @@ FormatterStyleItem::FormatterStyleItem(const QString &name, const QString &descr
     this->style = style;
 }
 
-void FormatterGeneralWidget::on_chkBreakMaxCodeLength_stateChanged(int)
+void FormatterGeneralWidget::on_chkBreakMaxCodeLength_toggled(bool checked)
 {
-    ui->spinMaxCodeLength->setEnabled(ui->chkBreakMaxCodeLength->isChecked());
-    ui->chkBreakAfterLogical->setEnabled(ui->chkBreakMaxCodeLength->isChecked());
+    ui->spinMaxCodeLength->setEnabled(checked);
+    ui->chkBreakAfterLogical->setEnabled(checked);
 }
 
 void FormatterGeneralWidget::updateDemo()
@@ -441,4 +441,3 @@ void FormatterGeneralWidget::updateCodeFormatter(CodeFormatterSettings &format)
     format.setMaxCodeLength(ui->spinMaxCodeLength->value());
     format.setBreakAfterLogical(ui->chkBreakAfterLogical->isChecked());
 }
-

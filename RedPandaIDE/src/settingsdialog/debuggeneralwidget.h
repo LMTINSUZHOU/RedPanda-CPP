@@ -40,7 +40,7 @@ protected:
     void doLoad() override;
     void doSave() override;
 private slots:
-    void on_chkOnlyMono_stateChanged(int arg1);
+    void on_chkOnlyMono_toggled(bool checked);
 };
 
 #endif // DEBUGGENERALWIDGET_H

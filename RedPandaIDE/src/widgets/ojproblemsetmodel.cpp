@@ -139,13 +139,19 @@ void OJProblemSetModel::saveToFile(const QString &filePath,bool keepFilePath,int
             problemObj["memory_limit_unit"]=(int)problem->memoryLimitUnit();
             if (fileExists(problem->answerProgram()))
                 problemObj["answer_program"] = problem->answerProgram();
+            QString customSpjProgram = problem->customSpjProgram();
+            QString prefix = includeTrailingPathDelimiter(extractFileDir(filePath));
+            if (customSpjProgram.startsWith(prefix, PATH_SENSITIVITY)) {
+                customSpjProgram = "%ProblemSetPath%/" + customSpjProgram.mid(prefix.length());
+            }
+            if (!customSpjProgram.isEmpty())
+                problemObj["custom_spj_program"] = customSpjProgram;
             QJsonArray cases;
             foreach (const POJProblemCase& problemCase, problem->cases()) {
                 QJsonObject caseObj;
                 caseObj["name"]=problemCase->name();
                 caseObj["input"]=problemCase->input();
                 QString path = problemCase->inputFileName();
-                QString prefix = includeTrailingPathDelimiter(extractFileDir(filePath));
                 if (path.startsWith(prefix, PATH_SENSITIVITY)) {
                     path = "%ProblemSetPath%/"+ path.mid(prefix.length());
                 }
@@ -212,6 +218,12 @@ void OJProblemSetModel::loadFromFile(const QString &filePath,bool keepFilePath,i
 
             problem->setDescription(problemObj["description"].toString());
             problem->setAnswerProgram(problemObj["answer_program"].toString());
+            QString customSpjProgram = problemObj["custom_spj_program"].toString();
+            if (customSpjProgram.startsWith("%ProblemSetPath%/")) {
+                customSpjProgram = includeTrailingPathDelimiter(extractFileDir(filePath))+
+                        customSpjProgram.mid(QLatin1String("%ProblemSetPath%/").size());
+            }
+            problem->setCustomSpjProgram(customSpjProgram);
             QJsonArray casesArray = problemObj["cases"].toArray();
             for(const QJsonValue& caseVal:casesArray) {
                 QJsonObject caseObj = caseVal.toObject();
@@ -251,6 +263,9 @@ void OJProblemSetModel::updateProblemAnswerFilename(const QString &oldFilename, 
     foreach (POJProblem problem, mProblemSet.problems()) {
         if (QString::compare(problem->answerProgram(),oldFilename,PATH_SENSITIVITY)==0) {
             problem->setAnswerProgram( newFilename);
+        }
+        if (QString::compare(problem->customSpjProgram(),oldFilename,PATH_SENSITIVITY)==0) {
+            problem->setCustomSpjProgram(newFilename);
         }
     }
 }
@@ -684,4 +699,3 @@ bool OJProblemModel::removeRows(int row, int count, const QModelIndex &/*parent*
     endMoveRows();
     return true;
 }
-

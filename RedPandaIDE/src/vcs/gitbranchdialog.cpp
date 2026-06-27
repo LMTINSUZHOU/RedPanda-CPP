@@ -77,13 +77,12 @@ void GitBranchDialog::on_lstBranches_currentIndexChanged(int /*index*/)
 }
 
 
-void GitBranchDialog::on_chkCreate_stateChanged(int /*arg1*/)
+void GitBranchDialog::on_chkCreate_toggled(bool checked)
 {
-    ui->txtNewBranch->setEnabled(ui->chkCreate->isChecked());
+    ui->txtNewBranch->setEnabled(checked);
 }
 
 void GitBranchDialog::closeEvent(QCloseEvent */* event */)
 {
     reject();
 }
-

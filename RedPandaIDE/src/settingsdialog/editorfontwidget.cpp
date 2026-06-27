@@ -59,9 +59,9 @@ EditorFontWidget::~EditorFontWidget()
     delete ui;
 }
 
-void EditorFontWidget::on_chkGutterOnlyMonospacedFonts_stateChanged(int)
+void EditorFontWidget::on_chkGutterOnlyMonospacedFonts_toggled(bool checked)
 {
-    if (ui->chkGutterOnlyMonospacedFonts->isChecked()) {
+    if (checked) {
         ui->cbGutterFont->setFontFilters(QFontComboBox::FontFilter::MonospacedFonts);
     } else {
         ui->cbGutterFont->setFontFilters(QFontComboBox::FontFilter::AllFonts);
@@ -225,4 +225,3 @@ void EditorFontWidget::modifyFont(const QModelIndex &index)
         mModel.setData(index, dlg.fontFamily());
     }
 }
-

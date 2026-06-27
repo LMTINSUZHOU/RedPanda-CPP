@@ -27,6 +27,7 @@ ExecutorProblemSetWidget::ExecutorProblemSetWidget(const QString& name, const QS
     ui->cbProblemCaseValidateType->addItem(tr("Exact"));
     ui->cbProblemCaseValidateType->addItem(tr("Ignore leading/trailing spaces"));
     ui->cbProblemCaseValidateType->addItem(tr("Ignore spaces"));
+    ui->cbProblemCaseValidateType->addItem(tr("Custom SPJ"));
 
 }
 
@@ -76,9 +77,9 @@ void ExecutorProblemSetWidget::doSave()
     pMainWindow->applySettings();
 }
 
-void ExecutorProblemSetWidget::on_chkOnlyMonospaced_stateChanged(int )
+void ExecutorProblemSetWidget::on_chkOnlyMonospaced_toggled(bool checked)
 {
-    if (ui->chkOnlyMonospaced->isChecked()) {
+    if (checked) {
         ui->cbFont->setFontFilters(QFontComboBox::FontFilter::MonospacedFonts);
     } else {
         ui->cbFont->setFontFilters(QFontComboBox::FontFilter::AllFonts);

@@ -79,7 +79,8 @@ enum class SplitProcessCommandQuoteType {
 enum class ProblemCaseValidateType {
     Exact,
     IgnoreLeadingTrailingSpaces,
-    IgnoreSpaces
+    IgnoreSpaces,
+    CustomSPJ
 };
 
 using LoggerFunc = std::function<void (const QString&)>;

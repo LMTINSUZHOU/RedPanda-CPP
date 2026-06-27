@@ -156,6 +156,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->cbProblemCaseValidateType->addItem(tr("Exact"));
     ui->cbProblemCaseValidateType->addItem(tr("Ignore leading/trailing spaces"));
     ui->cbProblemCaseValidateType->addItem(tr("Ignore spaces"));
+    ui->cbProblemCaseValidateType->addItem(tr("Custom SPJ"));
     ui->cbProblemCaseValidateType->blockSignals(false);
     addActions( this->findChildren<QAction *>(QString(), Qt::FindChildrenRecursively));
 
@@ -6393,7 +6394,11 @@ void MainWindow::onOJProblemCaseFinished(const QString& id, int current, int tot
     if (row>=0) {
         POJProblemCase problemCase = mOJProblemModel->getCase(row);
         ProblemCaseValidator validator;
-        problemCase->testState = validator.validate(problemCase,pSettings->executor().problemCaseValidateType())?
+        POJProblem problem = mOJProblemModel->problem();
+        problemCase->testState = validator.validate(
+                    problemCase,
+                    pSettings->executor().problemCaseValidateType(),
+                    problem ? problem->customSpjProgram() : QString())?
                     ProblemCaseTestState::Passed:
                     ProblemCaseTestState::Failed;
         mOJProblemModel->update(row);
@@ -9192,7 +9197,7 @@ QList<QAction *> MainWindow::listShortCutableActions()
     QList<QAction*> result;
     foreach(QAction* action, actions) {
         if (action->shortcutContext() == Qt::WidgetShortcut
-                && action->parentWidget() == this)
+                && qobject_cast<QWidget *>(action->parent()) == this)
             continue;
         result.append(action);
     }

@@ -120,8 +120,8 @@ void EditorGeneralWidget::doSave()
     pMainWindow->updateEditorSettings();
 }
 
-void EditorGeneralWidget::on_chkCaretUseTextColor_stateChanged(int )
+void EditorGeneralWidget::on_chkCaretUseTextColor_toggled(bool checked)
 {
-    ui->lbCaretColor->setVisible(!ui->chkCaretUseTextColor->isChecked());
-    ui->colorCaret->setVisible(!ui->chkCaretUseTextColor->isChecked());
+    ui->lbCaretColor->setVisible(!checked);
+    ui->colorCaret->setVisible(!checked);
 }

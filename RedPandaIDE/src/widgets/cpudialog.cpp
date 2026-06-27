@@ -198,10 +198,10 @@ void CPUDialog::on_rdATT_toggled(bool)
     updateSyntaxer();
 }
 
-void CPUDialog::on_chkBlendMode_stateChanged(int)
+void CPUDialog::on_chkBlendMode_toggled(bool checked)
 {
     updateInfo();
-    pSettings->debugger().setBlendMode(ui->chkBlendMode->isCheckable());
+    pSettings->debugger().setBlendMode(checked);
     pSettings->debugger().save();
     updateSyntaxer();
 }
@@ -246,4 +246,3 @@ void CPUDialog::on_cbCallStack_currentIndexChanged(int index)
         return ;
     pMainWindow->switchCurrentStackTrace(index);
 }
-

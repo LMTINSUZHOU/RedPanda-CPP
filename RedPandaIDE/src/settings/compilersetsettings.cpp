@@ -248,19 +248,19 @@ CompilerSet::CompilerSet(const QJsonObject &set) :
     , mGccSupportConvertingCharsetInitialized(false)
 #endif
 {
-    foreach (const QJsonValue &dir, set["binDirs"].toArray())
+    for (const QJsonValue &dir : set["binDirs"].toArray())
         mBinDirs.append(dir.toString());
-    foreach (const QJsonValue &dir, set["cIncludeDirs"].toArray())
+    for (const QJsonValue &dir : set["cIncludeDirs"].toArray())
         mCIncludeDirs.append(dir.toString());
-    foreach (const QJsonValue &dir, set["cxxIncludeDirs"].toArray())
+    for (const QJsonValue &dir : set["cxxIncludeDirs"].toArray())
         mCppIncludeDirs.append(dir.toString());
-    foreach (const QJsonValue &dir, set["libDirs"].toArray())
+    for (const QJsonValue &dir : set["libDirs"].toArray())
         mLibDirs.append(dir.toString());
-    foreach (const QJsonValue &dir, set["defaultLibDirs"].toArray())
+    for (const QJsonValue &dir : set["defaultLibDirs"].toArray())
         mDefaultLibDirs.append(dir.toString());
-    foreach (const QJsonValue &dir, set["defaultCIncludeDirs"].toArray())
+    for (const QJsonValue &dir : set["defaultCIncludeDirs"].toArray())
         mDefaultCIncludeDirs.append(dir.toString());
-    foreach (const QJsonValue &dir, set["defaultCxxIncludeDirs"].toArray())
+    for (const QJsonValue &dir : set["defaultCxxIncludeDirs"].toArray())
         mDefaultCppIncludeDirs.append(dir.toString());
 
     QString compilerType = set["compilerType"].toString();
@@ -282,11 +282,11 @@ CompilerSet::CompilerSet(const QJsonObject &set) :
     }
 
     QStringList compileParams;
-    foreach (const QJsonValue &param, set["customCompileParams"].toArray())
+    for (const QJsonValue &param : set["customCompileParams"].toArray())
         compileParams << param.toString();
     mCustomCompileParams = escapeArgumentsForInputField(compileParams);
     QStringList linkParams;
-    foreach (const QJsonValue &param, set["customLinkParams"].toArray())
+    for (const QJsonValue &param : set["customLinkParams"].toArray())
         linkParams << param.toString();
     mCustomLinkParams = escapeArgumentsForInputField(linkParams);
 

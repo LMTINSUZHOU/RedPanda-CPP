@@ -91,9 +91,9 @@ void DebugGeneralWidget::doSave()
     pMainWindow->updateDebuggerSettings();
 }
 
-void DebugGeneralWidget::on_chkOnlyMono_stateChanged(int)
+void DebugGeneralWidget::on_chkOnlyMono_toggled(bool checked)
 {
-    if (ui->chkOnlyMono->isChecked()) {
+    if (checked) {
         ui->cbFont->setFontFilters(QFontComboBox::FontFilter::MonospacedFonts);
     } else {
         ui->cbFont->setFontFilters(QFontComboBox::FontFilter::AllFonts);

@@ -271,6 +271,26 @@ endif()
 # Resources #
 #############
 
+# builtin C/C++ include files
+if(${FILESYSTEM_LAYOUT} STREQUAL "hierarchy")
+    install(
+        DIRECTORY RedPandaIDE/resources/include
+        DESTINATION share/${APP_NAME}
+        FILES_MATCHING PATTERN "*")
+elseif(${FILESYSTEM_LAYOUT} STREQUAL "flat")
+    install(
+        DIRECTORY RedPandaIDE/resources/include
+        DESTINATION .
+        FILES_MATCHING PATTERN "*")
+elseif(${FILESYSTEM_LAYOUT} STREQUAL "bundle")
+    install(
+        DIRECTORY RedPandaIDE/resources/include
+        DESTINATION RedPandaIDE.app/Contents/Resources
+        FILES_MATCHING PATTERN "*")
+else()
+    message(FATAL_ERROR "Unknown FILESYSTEM_LAYOUT: ${FILESYSTEM_LAYOUT}")
+endif()
+
 # templates
 if (XDG)
     install(

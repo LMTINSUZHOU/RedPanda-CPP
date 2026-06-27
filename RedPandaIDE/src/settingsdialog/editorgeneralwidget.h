@@ -40,7 +40,7 @@ protected:
     void doLoad() override;
     void doSave() override;
 private slots:
-    void on_chkCaretUseTextColor_stateChanged(int arg1);
+    void on_chkCaretUseTextColor_toggled(bool checked);
 };
 
 #endif // EDITORGENERALWIDGET_H

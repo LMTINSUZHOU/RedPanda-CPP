@@ -38,7 +38,7 @@ protected:
     void doLoad() override;
     void doSave() override;
 private slots:
-    void on_chkOnlyMonospaced_stateChanged(int arg1);
+    void on_chkOnlyMonospaced_toggled(bool checked);
 
 };
 

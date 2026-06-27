@@ -22,6 +22,7 @@
 #include "../utils/parsemacros.h"
 #include "compilermanager.h"
 #include "../systemconsts.h"
+#include "../settings/dirsettings.h"
 
 #include <cmath>
 #include <QFileInfo>
@@ -542,6 +543,7 @@ QStringList Compiler::getCIncludeArguments()
     foreach (const QString& folder,compilerSet()->CIncludeDirs()) {
         result << "-I" + folder;
     }
+    result += getBuiltinIncludeArguments();
     return result;
 }
 
@@ -563,7 +565,16 @@ QStringList Compiler::getCppIncludeArguments()
     foreach (const QString& folder,compilerSet()->CppIncludeDirs()) {
         result << "-I" + folder;
     }
+    result += getBuiltinIncludeArguments();
     return result;
+}
+
+QStringList Compiler::getBuiltinIncludeArguments()
+{
+    const QString includeDir = getFilePath(DirSettings::appResourceDir(), "include");
+    if (!directoryExists(includeDir))
+        return QStringList();
+    return {"-I" + includeDir};
 }
 
 QStringList Compiler::getLibraryArguments(FileType fileType)

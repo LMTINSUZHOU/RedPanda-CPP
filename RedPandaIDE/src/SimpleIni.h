@@ -2088,7 +2088,7 @@ CSimpleIniTempl<SI_CHAR,SI_STRLESS,SI_CONVERTER>::SetLongValue(
 #if __STDC_WANT_SECURE_LIB__ && !_WIN32_WCE
     sprintf_s(szInput, a_bUseHex ? "0x%lx" : "%ld", a_nValue);
 #else // !__STDC_WANT_SECURE_LIB__
-    sprintf(szInput, a_bUseHex ? "0x%lx" : "%ld", a_nValue);
+    snprintf(szInput, sizeof(szInput), a_bUseHex ? "0x%lx" : "%ld", a_nValue);
 #endif // __STDC_WANT_SECURE_LIB__
 
     // convert to output text
@@ -2148,9 +2148,9 @@ CSimpleIniTempl<SI_CHAR,SI_STRLESS,SI_CONVERTER>::SetDoubleValue(
 	// convert to an ASCII string
 	char szInput[64];
 #if __STDC_WANT_SECURE_LIB__ && !_WIN32_WCE
-	sprintf_s(szInput, "%f", a_nValue);
+		sprintf_s(szInput, "%f", a_nValue);
 #else // !__STDC_WANT_SECURE_LIB__
-	sprintf(szInput, "%f", a_nValue);
+		snprintf(szInput, sizeof(szInput), "%f", a_nValue);
 #endif // __STDC_WANT_SECURE_LIB__
 
 	// convert to output text
@@ -3487,4 +3487,3 @@ typedef CSimpleIniTempl<wchar_t,
 #endif
 
 #endif // INCLUDED_SimpleIni_h
-

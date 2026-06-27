@@ -23,7 +23,7 @@ private slots:
 
     void on_lstBranches_currentIndexChanged(int index);
 
-    void on_chkCreate_stateChanged(int arg1);
+    void on_chkCreate_toggled(bool checked);
 
 private:
     Ui::GitBranchDialog *ui;

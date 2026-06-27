@@ -101,6 +101,8 @@ public:
     void setHint(const QString &newHint);
     const QString &answerProgram() const;
     void setAnswerProgram(const QString &newAnswerProgram);
+    const QString &customSpjProgram() const;
+    void setCustomSpjProgram(const QString &newCustomSpjProgram);
     void setTimeLimit(size_t newTimeLimit);
     void setMemoryLimit(size_t newMemoryLimit);
     size_t getTimeLimitInMilliseconds();
@@ -131,6 +133,7 @@ private:
     QString mDescription;
     QString mHint;
     QString mAnswerProgram;
+    QString mCustomSpjProgram;
     size_t mTimeLimit;
     size_t mMemoryLimit;
     ProblemTimeLimitUnit mTimeLimitUnit;

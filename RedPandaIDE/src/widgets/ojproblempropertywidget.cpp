@@ -17,6 +17,11 @@
 #include "ojproblempropertywidget.h"
 #include "ui_ojproblempropertywidget.h"
 #include "../problems/ojproblemset.h"
+#include "../systemconsts.h"
+#include "../utils.h"
+
+#include <QDir>
+#include <QFileDialog>
 
 OJProblemPropertyWidget::OJProblemPropertyWidget(QWidget *parent) :
     QDialog(parent),
@@ -46,6 +51,7 @@ void OJProblemPropertyWidget::loadFromProblem(POJProblem problem)
         return;
     ui->lbName->setText(problem->name());
     ui->txtURL->setText(problem->url());
+    ui->txtCustomSpjProgram->setText(problem->customSpjProgram());
     ui->txtDescription->setHtml(problem->description());
     ui->spinMemoryLimit->setValue(problem->memoryLimit());
     ui->spinTimeLimit->setValue(problem->timeLimit());
@@ -76,6 +82,7 @@ void OJProblemPropertyWidget::saveToProblem(POJProblem problem)
         return;
     problem->setName(ui->lbName->text());
     problem->setUrl(ui->txtURL->text());
+    problem->setCustomSpjProgram(ui->txtCustomSpjProgram->text());
     problem->setDescription(ui->txtDescription->toHtml());
     problem->setMemoryLimit(ui->spinMemoryLimit->value());
     problem->setTimeLimit(ui->spinTimeLimit->value());
@@ -102,3 +109,18 @@ void OJProblemPropertyWidget::on_btnCancel_clicked()
     this->reject();
 }
 
+void OJProblemPropertyWidget::on_btnBrowseCustomSpjProgram_clicked()
+{
+    QString fileFilter = pSystemConsts
+            ? pSystemConsts->executableFileFilter()
+            : tr("All files (%1)").arg(ALL_FILE_WILDCARD);
+    QString filename = QFileDialog::getOpenFileName(
+                this,
+                tr("Select Custom SPJ Program"),
+                ui->txtCustomSpjProgram->text(),
+                fileFilter);
+    if (!filename.isEmpty() && fileExists(filename)) {
+        QDir::setCurrent(extractFileDir(filename));
+        ui->txtCustomSpjProgram->setText(filename);
+    }
+}

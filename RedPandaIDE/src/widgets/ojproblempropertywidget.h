@@ -41,6 +41,8 @@ private slots:
 
     void on_btnCancel_clicked();
 
+    void on_btnBrowseCustomSpjProgram_clicked();
+
 private:
     Ui::OJProblemPropertyWidget *ui;
 };

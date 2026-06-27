@@ -320,10 +320,10 @@ QList<EnvironmentSettings::TerminalItem> EnvironmentSettings::loadTerminalList()
 
     QList<EnvironmentSettings::TerminalItem> result;
     // determing terminal (if not set yet) and build predefined arguments pattern map from our list
-    foreach (const auto &terminalGroup, terminalListDocument.array()) {
-        const QJsonArray &terminals = terminalGroup.toObject()["terminals"].toArray();
-        foreach (const auto &terminal_, terminals) {
-            const QJsonObject& terminal = terminal_.toObject();
+    for (const auto &terminalGroup : terminalListDocument.array()) {
+        const QJsonArray terminals = terminalGroup.toObject()["terminals"].toArray();
+        for (const auto &terminal_ : terminals) {
+            const QJsonObject terminal = terminal_.toObject();
             QString path = terminal["path"].toString();
             QString termExecutable = QFileInfo(path).fileName();
             QString pattern = terminal["argsPattern"].toString();

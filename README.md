@@ -1,5 +1,11 @@
 # RedPanda C++
 
+## Fork 修改版说明
+
+本仓库是基于上游 RedPanda C++ fork 后继续维护的修改版，面向本项目的构建、竞赛测试和平台兼容性需求进行调整，不代表上游官方发布。
+
+当前 fork 版本：**F3.5**。
+
 RedPanda C++（中文名“小熊猫 C++”，旧名 Red Panda Dev-C++ 7）是一款快速、轻量、开源、跨平台的 C/C++/GNU 汇编 IDE。项目以 Qt 和 C++ 开发，面向日常 C/C++ 学习、工程开发、调试，以及算法竞赛场景。
 
 简体中文网站：[http://royqh.net/redpandacpp](http://royqh.net/redpandacpp)

@@ -199,6 +199,19 @@ void OJProblem::setAnswerProgram(const QString &newAnswerProgram)
     }
 }
 
+const QString &OJProblem::customSpjProgram() const
+{
+    return mCustomSpjProgram;
+}
+
+void OJProblem::setCustomSpjProgram(const QString &newCustomSpjProgram)
+{
+    if (mCustomSpjProgram != newCustomSpjProgram) {
+        mCustomSpjProgram = newCustomSpjProgram;
+        setModified(true);
+    }
+}
+
 void OJProblem::setTimeLimit(size_t newTimeLimit)
 {
     if (mTimeLimit != newTimeLimit) {

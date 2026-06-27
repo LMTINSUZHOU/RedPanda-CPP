@@ -30,7 +30,7 @@
 #include "../settings.h"
 #include <QAbstractScrollArea>
 
-#if defined(Q_OS_MACX)
+#if defined(Q_OS_MACOS)
 #include <QtGui/private/qguiapplication_p.h>
 #include <QtGui/qpa/qplatformtheme.h>
 #endif
@@ -128,7 +128,7 @@ DarkFusionStyle::DarkFusionStyle():QProxyStyle("fusion")
 // On mac we want a standard blue color used when the system palette is used
 static bool isMacSystemPalette(const QPalette &pal){
     Q_UNUSED(pal);
-#if defined(Q_OS_MACX)
+#if defined(Q_OS_MACOS)
     const QPalette *themePalette = QGuiApplicationPrivate::platformTheme()->palette();
     if (themePalette && themePalette->color(QPalette::Normal, QPalette::Highlight) ==
             pal.color(QPalette::Normal, QPalette::Highlight) &&

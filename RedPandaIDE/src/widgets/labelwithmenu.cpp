@@ -27,8 +27,14 @@ LabelWithMenu::LabelWithMenu(QWidget* parent):QLabel(parent)
 
 void LabelWithMenu::mousePressEvent(QMouseEvent *event)
 {
+#if QT_VERSION_MAJOR >= 6
+    QPoint globalPos = event->globalPosition().toPoint();
+#else
+    QPoint globalPos = event->globalPos();
+#endif
     QContextMenuEvent *e = new QContextMenuEvent(QContextMenuEvent::Reason::Mouse,
-                                                 event->pos());
+                                                 event->pos(),
+                                                 globalPos);
     QApplication::instance()->postEvent(this,e);
     event->accept();
 }

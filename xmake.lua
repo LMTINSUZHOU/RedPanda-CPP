@@ -252,6 +252,16 @@ end
 target("resources")
     set_kind("phony")
 
+    -- builtin C/C++ include files
+
+    if get_config("filesystem-layout") == "hierarchy" then
+        add_installfiles("RedPandaIDE/resources/include/(**.*)", {prefixdir = "share/$(app-name)/include"})
+    elseif get_config("filesystem-layout") == "flat" then
+        add_installfiles("RedPandaIDE/resources/include/(**.*)", {prefixdir = "include"})
+    elseif get_config("filesystem-layout") ~= nil then
+        trap_unreachable()
+    end
+
     -- templates
 
     if is_xdg() then

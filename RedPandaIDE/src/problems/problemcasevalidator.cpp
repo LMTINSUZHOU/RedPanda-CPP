@@ -16,12 +16,18 @@
  */
 #include "problemcasevalidator.h"
 
+#include <QDir>
+#include <QFileInfo>
+#include <QProcess>
+#include <QTemporaryDir>
+
 ProblemCaseValidator::ProblemCaseValidator()
 {
 
 }
 
-bool ProblemCaseValidator::validate(POJProblemCase problemCase, ProblemCaseValidateType type)
+bool ProblemCaseValidator::validate(POJProblemCase problemCase, ProblemCaseValidateType type,
+                                    const QString& customSpjProgram)
 {
     if (!problemCase)
         return false;
@@ -33,6 +39,9 @@ bool ProblemCaseValidator::validate(POJProblemCase problemCase, ProblemCaseValid
         expected = textToLines(problemCase->expected());
     problemCase->outputLineCounts = output.count();
     problemCase->expectedLineCounts = expected.count();
+    problemCase->firstDiffLine = -1;
+    if (type == ProblemCaseValidateType::CustomSPJ)
+        return validateWithCustomSpj(problemCase, customSpjProgram);
     if (expected.count() > 5000) {
         if (output.count()<expected.count()) {
             problemCase->firstDiffLine=output.count();
@@ -68,6 +77,8 @@ bool ProblemCaseValidator::validate(POJProblemCase problemCase, ProblemCaseValid
             }
         }
         break;
+    case ProblemCaseValidateType::CustomSPJ:
+        break;
     }
     if (output.count()<expected.count()) {
         problemCase->firstDiffLine=output.count();
@@ -77,6 +88,54 @@ bool ProblemCaseValidator::validate(POJProblemCase problemCase, ProblemCaseValid
         return false;
     }
     return true;
+}
+
+bool ProblemCaseValidator::validateWithCustomSpj(POJProblemCase problemCase, const QString &customSpjProgram)
+{
+    if (!problemCase || customSpjProgram.isEmpty() || !fileExists(customSpjProgram))
+        return false;
+
+    QTemporaryDir tempDir;
+    if (!tempDir.isValid())
+        return false;
+
+    QString inputFilename = problemCase->inputFileName();
+    if (!fileExists(inputFilename)) {
+        inputFilename = QDir(tempDir.path()).absoluteFilePath("input.txt");
+        if (!writeTextFile(inputFilename, problemCase->input()))
+            return false;
+    }
+
+    QString outputFilename = QDir(tempDir.path()).absoluteFilePath("output.txt");
+    if (!writeTextFile(outputFilename, problemCase->output))
+        return false;
+
+    QString expectedFilename = problemCase->expectedOutputFileName();
+    if (!fileExists(expectedFilename)) {
+        expectedFilename = QDir(tempDir.path()).absoluteFilePath("answer.txt");
+        if (!writeTextFile(expectedFilename, problemCase->expected()))
+            return false;
+    }
+
+    QProcess process;
+    process.setProgram(customSpjProgram);
+    process.setArguments({inputFilename, outputFilename, expectedFilename});
+    process.setWorkingDirectory(QFileInfo(customSpjProgram).absolutePath());
+    process.start();
+    if (!process.waitForStarted(5000))
+        return false;
+    if (!process.waitForFinished(30000)) {
+        process.kill();
+        process.waitForFinished(1000);
+        return false;
+    }
+
+    return process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
+}
+
+bool ProblemCaseValidator::writeTextFile(const QString &filename, const QString &content)
+{
+    return stringToFile(content, filename);
 }
 
 bool ProblemCaseValidator::equalIgnoringSpaces(const QString &s1, const QString &s2)

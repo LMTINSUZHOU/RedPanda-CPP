@@ -183,40 +183,40 @@ void ProjectFilesWidget::on_spinPriority_valueChanged(int)
 }
 
 
-void ProjectFilesWidget::on_chkCompile_stateChanged(int)
+void ProjectFilesWidget::on_chkCompile_toggled(bool checked)
 {
     PProjectUnit unit = currentUnit();
     if(!unit)
         return;
-    unit->setCompile(ui->chkCompile->isChecked());
+    unit->setCompile(checked);
 }
 
 
-void ProjectFilesWidget::on_chkLink_stateChanged(int)
+void ProjectFilesWidget::on_chkLink_toggled(bool checked)
 {
     PProjectUnit unit = currentUnit();
     if(!unit)
         return;
-    unit->setLink(ui->chkLink->isChecked());
+    unit->setLink(checked);
 }
 
 
-void ProjectFilesWidget::on_chkCompileAsCPP_stateChanged(int )
+void ProjectFilesWidget::on_chkCompileAsCPP_toggled(bool checked)
 {
     PProjectUnit unit = currentUnit();
     if(!unit)
         return;
-    unit->setCompileCpp(ui->chkCompileAsCPP->isChecked());
+    unit->setCompileCpp(checked);
 }
 
 
-void ProjectFilesWidget::on_chkOverrideBuildCommand_stateChanged(int )
+void ProjectFilesWidget::on_chkOverrideBuildCommand_toggled(bool checked)
 {
     PProjectUnit unit = currentUnit();
     if(!unit)
         return;
-    unit->setOverrideBuildCmd(ui->chkOverrideBuildCommand->isChecked());
-    ui->txtBuildCommand->setEnabled(ui->chkOverrideBuildCommand->isChecked());
+    unit->setOverrideBuildCmd(checked);
+    ui->txtBuildCommand->setEnabled(checked);
 }
 
 
@@ -290,4 +290,3 @@ void ProjectFilesWidget::on_cbEncodingDetail_currentTextChanged(const QString &)
         return;
     unit->setEncoding(ui->cbEncodingDetail->currentText().toUtf8());
 }
-

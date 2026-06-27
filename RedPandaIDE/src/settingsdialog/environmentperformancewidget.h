@@ -36,7 +36,7 @@ public:
     void doSave() override;
 
 private slots:
-    void on_chkEditorsShareParser_stateChanged(int arg1);
+    void on_chkEditorsShareParser_toggled(bool checked);
 
 private:
     Ui::EnvironmentPerformanceWidget *ui;

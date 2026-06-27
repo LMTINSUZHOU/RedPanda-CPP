@@ -61,7 +61,7 @@ public:
 private slots:
     void onBraceStyleChanged();
 
-    void on_chkBreakMaxCodeLength_stateChanged(int arg1);
+    void on_chkBreakMaxCodeLength_toggled(bool checked);
 
     void updateDemo();
 private:

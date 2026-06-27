@@ -199,6 +199,22 @@ endif()
 
 target_include_directories(RedPandaIDE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
+set(redpanda_builtin_include_source "${CMAKE_CURRENT_SOURCE_DIR}/resources/include")
+if(${FILESYSTEM_LAYOUT} STREQUAL "hierarchy")
+    set(redpanda_builtin_include_build_dest "$<TARGET_FILE_DIR:RedPandaIDE>/../share/${APP_NAME}/include")
+elseif(${FILESYSTEM_LAYOUT} STREQUAL "flat")
+    set(redpanda_builtin_include_build_dest "$<TARGET_FILE_DIR:RedPandaIDE>/include")
+elseif(${FILESYSTEM_LAYOUT} STREQUAL "bundle")
+    set(redpanda_builtin_include_build_dest "$<TARGET_BUNDLE_CONTENT_DIR:RedPandaIDE>/Resources/include")
+else()
+    message(FATAL_ERROR "Unknown FILESYSTEM_LAYOUT: ${FILESYSTEM_LAYOUT}")
+endif()
+add_custom_command(
+    TARGET RedPandaIDE POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${redpanda_builtin_include_source}"
+        "${redpanda_builtin_include_build_dest}")
+
 target_link_libraries(RedPandaIDE PRIVATE
     Qt::Core
     Qt::Gui
@@ -361,6 +377,52 @@ add_test(
 add_dependencies(all-test-targets test-cppparser)
 
 #####################
+# test-problems     #
+#####################
+
+add_executable(test-spj-checker test/test-spj-checker.cpp)
+
+add_executable(test-problems test/test-problems-main.cpp)
+
+target_qt_plain_cpp(test-problems
+    # problems
+    src/problems/ojproblemset
+    src/problems/problemcasevalidator
+
+    # utils
+    src/utils/file
+    )
+
+target_moc_classes(test-problems
+    #test
+    test/test_problemcasevalidator
+)
+
+target_include_directories(test-problems PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_link_libraries(test-problems PRIVATE
+        Qt::Core
+        Qt::Test
+        redpanda_qt_utils)
+
+target_compile_definitions(test-problems PRIVATE
+    ${GLOBAL_COMPILE_DEFINITIONS}
+    APP_NAME=\"test-problems\"
+    LIBEXECDIR=\"${CMAKE_INSTALL_LIBEXECDIR}\"
+    REDPANDA_CPP_VERSION=\"${REDPANDA_VERSION}\"
+    ARCH_X86_64=1
+    ARCH_X86=1
+    TEST_SPJ_CHECKER_PATH=\"$<TARGET_FILE:test-spj-checker>\")
+
+add_test(
+    NAME test-problems
+    COMMAND test-problems)
+
+add_dependencies(test-problems test-spj-checker)
+add_dependencies(all-test-targets test-problems)
+
+#####################
 # Platform-specific #
 #####################
 
@@ -433,6 +495,7 @@ set (MAIN_PROGRAM_PATH_DEFS
 
 target_compile_definitions(RedPandaIDE PRIVATE ${MAIN_PROGRAM_PATH_DEFS})
 target_compile_definitions(test-editor PRIVATE ${MAIN_PROGRAM_PATH_DEFS})
+target_compile_definitions(test-problems PRIVATE ${MAIN_PROGRAM_PATH_DEFS})
 
 ###################
 # Feature options #

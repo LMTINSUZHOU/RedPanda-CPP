@@ -51,10 +51,10 @@ private:
 private slots:
     void on_treeProject_doubleClicked(const QModelIndex &index);
     void on_spinPriority_valueChanged(int arg1);
-    void on_chkCompile_stateChanged(int arg1);
-    void on_chkLink_stateChanged(int arg1);
-    void on_chkCompileAsCPP_stateChanged(int arg1);
-    void on_chkOverrideBuildCommand_stateChanged(int arg1);
+    void on_chkCompile_toggled(bool checked);
+    void on_chkLink_toggled(bool checked);
+    void on_chkCompileAsCPP_toggled(bool checked);
+    void on_chkOverrideBuildCommand_toggled(bool checked);
     void on_txtBuildCommand_textChanged();
     void on_cbEncoding_currentTextChanged(const QString &arg1);
     void on_treeProject_clicked(const QModelIndex &index);

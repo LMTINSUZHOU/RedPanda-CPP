@@ -324,18 +324,21 @@ void TestCppParser::test_eval_pair_members()
     QVERIFY(pairStatement != nullptr);
     QCOMPARE(pairStatement->type,"std::pair<int, double>");
 
-    QStringList expression = {"p"};
+    QStringList expression;
+    expression << "p";
     PEvalStatement evalStatement = mParser->evalExpression("pair.cpp", expression, PStatement());
     QVERIFY(evalStatement != nullptr);
     QCOMPARE(evalStatement->baseType,"std::pair");
     QCOMPARE(evalStatement->templateParams,"<int, double>");
 
-    expression = {"p", ".", "first"};
+    expression.clear();
+    expression << "p" << "." << "first";
     evalStatement = mParser->evalExpression("pair.cpp", expression, PStatement());
     QVERIFY(evalStatement != nullptr);
     QCOMPARE(evalStatement->baseType,"int");
 
-    expression = {"p", ".", "second"};
+    expression.clear();
+    expression << "p" << "." << "second";
     evalStatement = mParser->evalExpression("pair.cpp", expression, PStatement());
     QVERIFY(evalStatement != nullptr);
     QCOMPARE(evalStatement->baseType,"double");

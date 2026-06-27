@@ -186,16 +186,20 @@ bool SyntaxState::equals(const std::shared_ptr<SyntaxState> &s2) const
 
 IndentInfo SyntaxState::getLastIndent()
 {
-    if (indents.isEmpty())
+    // Local copy prevents TOCTOU race when another thread clears indents
+    // between isEmpty() and back() (fixes #695).
+    const QVector<IndentInfo> localIndents = indents;
+    if (localIndents.isEmpty())
         return IndentInfo{IndentType::None,0, ""};
-    return indents.back();
+    return localIndents.back();
 }
 
 IndentType SyntaxState::getLastIndentType()
 {
-    if (indents.isEmpty())
+    const QVector<IndentInfo> localIndents = indents;
+    if (localIndents.isEmpty())
         return IndentType::None;
-    return indents.back().type;
+    return localIndents.back().type;
 }
 
 SyntaxState::SyntaxState():

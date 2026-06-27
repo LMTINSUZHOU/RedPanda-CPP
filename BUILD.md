@@ -69,12 +69,15 @@ To build, launch MSYS2 environment, run:
 
 Available profiles: 64-ucrt, 32-ucrt, 64-msvcrt (deprecated), 32-msvcrt (deprecated).
 
+By default, the package includes the integrated compiler matching the selected profile. Use `--no-compiler` to build the no-compiler package.
+
 Arguments:
 - `-h`, `--help`: show help message.
 - `-c`, `--clean`: clean build directory.
 - `--mingw32`: add `assets/mingw32.7z` to the package.
-- `--mingw64`: add `assets/mingw64.7z` to the package.
+- `--mingw64`: add `assets/x86_64-16.1.0-release-mcf-seh-ucrt-rt_v14-rev1.7z` to the package.
 - `--mingw`: alias for `--mingw32` (x86 app) or `--mingw64` (x64 app).
+- `--no-compiler`: build package without integrated compiler.
 - `-t <dir>`, `--target-dir <dir>`: set target directory for the packages. Default: `dist/`.
 - `--ucrt`: include UCRT installer (VC_redist) in the package.
 

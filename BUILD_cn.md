@@ -69,12 +69,15 @@ podman run --rm -v $PWD:/mnt -w /mnt docker.io/library/archlinux:latest ./packag
 
 可用的配置：64-ucrt、32-ucrt、64-msvcrt（已弃用）、32-msvcrt（已弃用）。
 
+默认情况下，软件包会包含与所选配置匹配的内置编译器。使用 `--no-compiler` 可构建不含编译器的软件包。
+
 参数：
 - `-h`、`--help`：显示帮助信息。
 - `-c`、`--clean`：清理构建目录。
 - `--mingw32`：把 `assets/mingw32.7z` 添加到包中。
-- `--mingw64`：把 `assets/mingw64.7z` 添加到包中。
+- `--mingw64`：把 `assets/x86_64-16.1.0-release-mcf-seh-ucrt-rt_v14-rev1.7z` 添加到包中。
 - `--mingw`：`--mingw32`（x86 程序）或 `--mingw64`（x64 程序）的别名。
+- `--no-compiler`：构建不包含内置编译器的软件包。
 - `-t <dir>`、`--target-dir <dir>`：指定输出目录。默认值为 `dist/`。
 - `--ucrt`：把 UCRT 安装程序（VC_redist）添加到包中。
 

@@ -16,6 +16,7 @@ Options:
   --mingw                  Alias for --mingw32 (x86 app) or --mingw64 (x64 app).
   --mingw32                Build mingw32 integrated compiler.
   --mingw64                Build mingw64 integrated compiler.
+  --no-compiler            Build without integrated compiler.
   -t, --target-dir <dir>   Set target directory for the packages.
 EOF
 }
@@ -58,6 +59,7 @@ CLEAN=0
 compilers=()
 COMPILER_MINGW32=0
 COMPILER_MINGW64=0
+NO_COMPILER=0
 TARGET_DIR="$(pwd)/dist"
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -93,6 +95,10 @@ while [[ $# -gt 0 ]]; do
       COMPILER_MINGW64=1
       shift
       ;;
+    --no-compiler)
+      NO_COMPILER=1
+      shift
+      ;;
     -t|--target-dir)
       TARGET_DIR="$2"
       shift 2
@@ -119,12 +125,27 @@ QT_DIR="/c/Qt/${QT_VERSION}/${PROFILE}"
 
 REDPANDA_MINGW_RELEASE="11.5.0-r0"
 MINGW32_ARCHIVE="mingw32-${REDPANDA_MINGW_RELEASE}.7z"
+MINGW32_ARCHIVE_URL="https://github.com/redpanda-cpp/toolchain-win32-mingw-xp/releases/download/${REDPANDA_MINGW_RELEASE}/${MINGW32_ARCHIVE}"
 MINGW32_COMPILER_NAME="MinGW-w64 i686 GCC"
 MINGW32_PACKAGE_SUFFIX="mingw32"
 
-MINGW64_ARCHIVE="mingw64-${REDPANDA_MINGW_RELEASE}.7z"
-MINGW64_COMPILER_NAME="MinGW-w64 x86_64 GCC"
-MINGW64_PACKAGE_SUFFIX="mingw64"
+MINGW64_ARCHIVE="x86_64-16.1.0-release-mcf-seh-ucrt-rt_v14-rev1.7z"
+MINGW64_ARCHIVE_URL="https://github.com/niXman/mingw-builds-binaries/releases/download/16.1.0-rt_v14-rev1/${MINGW64_ARCHIVE}"
+MINGW64_COMPILER_NAME="MinGW-w64 x86_64 GCC 16.1.0 UCRT MCF SEH"
+MINGW64_PACKAGE_SUFFIX="mingw64-gcc16.1.0-ucrt"
+
+if [[ ${#compilers[@]} -eq 0 && ${NO_COMPILER} -eq 0 ]]; then
+  case "${PROFILE}" in
+    64-ucrt|64-msvcrt)
+      compilers+=("mingw64")
+      COMPILER_MINGW64=1
+      ;;
+    32-ucrt|32-msvcrt)
+      compilers+=("mingw32")
+      COMPILER_MINGW32=1
+      ;;
+  esac
+fi
 
 if [[ ${#compilers[@]} -eq 0 ]]; then
   PACKAGE_BASENAME="${PACKAGE_BASENAME}-none"
@@ -135,6 +156,24 @@ fi
 
 function fn_print_progress() {
   echo -e "\e[1;32;44m$1\e[0m"
+}
+
+function ensure_asset_archive() {
+  local archive="$1"
+  local url="$2"
+
+  if [[ -f "${ASSETS_DIR}/${archive}" ]]; then
+    return
+  fi
+
+  if [[ -n "${url}" ]]; then
+    curl -L "${url}" -o "${ASSETS_DIR}/${archive}"
+    return
+  fi
+
+  echo "Missing integrated compiler archive: ${ASSETS_DIR}/${archive}"
+  echo "Place the archive in assets/ before building this package."
+  exit 1
 }
 
 ## prepare dirs
@@ -165,12 +204,8 @@ export PATH="${QT_DIR}/bin:${PATH}"
 fn_print_progress "Prepare astyle source..."
 packages/_common/prepare-astyle.sh --git-dir "${ASSETS_DIR}/astyle" --work-dir "${ASTYLE_BUILD_DIR}"
 
-if [[ ${COMPILER_MINGW32} -eq 1 && ! -f "${ASSETS_DIR}/${MINGW32_ARCHIVE}" ]]; then
-  curl -L "https://github.com/redpanda-cpp/toolchain-win32-mingw-xp/releases/download/${REDPANDA_MINGW_RELEASE}/${MINGW32_ARCHIVE}" -o "${ASSETS_DIR}/${MINGW32_ARCHIVE}"
-fi
-if [[ ${COMPILER_MINGW64} -eq 1 && ! -f "${ASSETS_DIR}/${MINGW64_ARCHIVE}" ]]; then
-  curl -L "https://github.com/redpanda-cpp/toolchain-win32-mingw-xp/releases/download/${REDPANDA_MINGW_RELEASE}/${MINGW64_ARCHIVE}" -o "${ASSETS_DIR}/${MINGW64_ARCHIVE}"
-fi
+[[ ${COMPILER_MINGW32} -eq 1 ]] && ensure_asset_archive "${MINGW32_ARCHIVE}" "${MINGW32_ARCHIVE_URL}"
+[[ ${COMPILER_MINGW64} -eq 1 ]] && ensure_asset_archive "${MINGW64_ARCHIVE}" "${MINGW64_ARCHIVE_URL}"
 
 ## build
 fn_print_progress "Building astyle..."

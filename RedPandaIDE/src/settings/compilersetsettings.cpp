@@ -1614,6 +1614,10 @@ static void setReleaseOptions(PCompilerSet pSet) {
     pSet->setCompileOption(CC_CMD_OPT_USE_PIPE, COMPILER_OPTION_ON);
     pSet->setCompileOption(CC_CMD_OPT_NO_MS_EXTENSIONS, COMPILER_OPTION_ON);
 
+    // default language standards: GNU C++20 and ISO C90
+    pSet->setCompileOption(CC_CMD_OPT_STD, "gnu++2a");
+    pSet->setCompileOption(C_CMD_OPT_STD, "c90");
+
     pSet->setCompileOption(CC_CMD_OPT_ERROR_RETURN_TYPE, COMPILER_OPTION_ON);
     pSet->setCompileOption(CC_CMD_OPT_ERROR_IMPLICIT_INT, COMPILER_OPTION_ON);
 //  pSet->setCompileOption(CC_CMD_OPT_ERROR_UNINITIALIZED, COMPILER_OPTION_ON);
@@ -1628,6 +1632,10 @@ static void setDebugOptions(PCompilerSet pSet, const QString &sanitizerType = QS
     pSet->setCompileOption(CC_CMD_OPT_NO_MS_EXTENSIONS, COMPILER_OPTION_ON);
     //pSet->setCompileOption(CC_CMD_OPT_WARNING_EXTRA, COMPILER_OPTION_ON);
     pSet->setCompileOption(CC_CMD_OPT_USE_PIPE, COMPILER_OPTION_ON);
+
+    // default language standards: GNU C++20 and ISO C90
+    pSet->setCompileOption(CC_CMD_OPT_STD, "gnu++2a");
+    pSet->setCompileOption(C_CMD_OPT_STD, "c90");
 
     pSet->setCompileOption(CC_CMD_OPT_ERROR_RETURN_TYPE, COMPILER_OPTION_ON);
     pSet->setCompileOption(CC_CMD_OPT_ERROR_IMPLICIT_INT, COMPILER_OPTION_ON);

@@ -175,6 +175,39 @@ SectionEnd
   SectionEnd
 !endif
 
+!ifdef HAVE_MINGW32
+  Section "$(SectionAddToPathName)" SectionAddToPath32
+    SectionIn 1 3
+    SetOutPath $INSTDIR
+
+    ; Add mingw32\bin to user PATH
+    ReadRegStr $0 HKCU "Environment" "PATH"
+    ${If} $0 == ""
+      WriteRegStr HKCU "Environment" "PATH" "$INSTDIR\mingw32\bin"
+    ${Else}
+      WriteRegExpandStr HKCU "Environment" "PATH" "$0;$INSTDIR\mingw32\bin"
+    ${EndIf}
+    ; broadcast WM_SETTINGCHANGE so Explorer picks up the new PATH
+    SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
+  SectionEnd
+!endif
+
+!ifdef HAVE_MINGW64
+  Section "$(SectionAddToPathName)" SectionAddToPath64
+    SectionIn 1 3
+    SetOutPath $INSTDIR
+
+    ; Add mingw64\bin to user PATH
+    ReadRegStr $0 HKCU "Environment" "PATH"
+    ${If} $0 == ""
+      WriteRegStr HKCU "Environment" "PATH" "$INSTDIR\mingw64\bin"
+    ${Else}
+      WriteRegExpandStr HKCU "Environment" "PATH" "$0;$INSTDIR\mingw64\bin"
+    ${EndIf}
+    SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
+  SectionEnd
+!endif
+
 !ifdef HAVE_GCC_LINUX_X8664
   Section "$(SectionGccLinuxX8664Name)" SectionGccLinuxX8664
     SectionIn 1 3
@@ -335,6 +368,12 @@ SectionEnd
 !ifdef HAVE_LLVM
   !insertmacro MUI_DESCRIPTION_TEXT ${SectionLlvm}        "$(MessageSectionLlvm)"
 !endif
+!ifdef HAVE_MINGW32
+  !insertmacro MUI_DESCRIPTION_TEXT ${SectionAddToPath32} "$(MessageSectionAddToPath)"
+!endif
+!ifdef HAVE_MINGW64
+  !insertmacro MUI_DESCRIPTION_TEXT ${SectionAddToPath64} "$(MessageSectionAddToPath)"
+!endif
 !insertmacro MUI_DESCRIPTION_TEXT ${SectionShortcuts}   "$(MessageSectionShortcuts)"
 !insertmacro MUI_DESCRIPTION_TEXT ${SectionAssocs}      "$(MessageSectionAssocs)"
 !insertmacro MUI_DESCRIPTION_TEXT ${SectionCompress}    "$(MessageSectionCompress)"
@@ -482,6 +521,21 @@ Section "Uninstall"
   RMDir /r "$INSTDIR\mingw32"
   RMDir /r "$INSTDIR\mingw64"
   RMDir /r "$INSTDIR\llvm-mingw"
+
+  ; Remove compiler bin from user PATH (if it was added during install)
+  ReadRegStr $0 HKCU "Environment" "PATH"
+  ${If} $0 != ""
+    ; remove mingw32\bin if present
+    ${WordReplace} $0 ";$INSTDIR\mingw32\bin" "" "+" $1
+    ${WordReplace} $1 "$INSTDIR\mingw32\bin;" "" "+" $0
+    ${WordReplace} $0 "$INSTDIR\mingw32\bin" "" "+" $1
+    ; remove mingw64\bin if present
+    ${WordReplace} $1 ";$INSTDIR\mingw64\bin" "" "+" $0
+    ${WordReplace} $0 "$INSTDIR\mingw64\bin;" "" "+" $1
+    ${WordReplace} $1 "$INSTDIR\mingw64\bin" "" "+" $0
+    WriteRegExpandStr HKCU "Environment" "PATH" $0
+    SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
+  ${EndIf}
 
   RMDir "$INSTDIR"
 

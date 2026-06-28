@@ -17,9 +17,10 @@
 
 #include "terminalprocess.h"
 
-#ifdef Q_OS_WIN
+#include "../../systemconsts.h"
+
+#include <QFileInfo>
 #include <QProcessEnvironment>
-#endif
 
 namespace {
 
@@ -28,6 +29,12 @@ QString windowsShellProgram()
 {
     const QString comspec = QProcessEnvironment::systemEnvironment().value("COMSPEC");
     return comspec.isEmpty() ? QStringLiteral("cmd.exe") : comspec;
+}
+#else
+QString unixShellProgram()
+{
+    const QString shell = QProcessEnvironment::systemEnvironment().value("SHELL");
+    return shell.isEmpty() ? QStringLiteral("/bin/sh") : shell;
 }
 #endif
 
@@ -56,51 +63,36 @@ bool TerminalProcess::execute(const QString &commandLine)
     if (handleBuiltin(trimmed))
         return true;
 
-#ifdef Q_OS_WIN
-    runExternal(windowsShellProgram(), {"/d", "/s", "/c", trimmed});
-#else
-    // Split into program + arguments, respecting quoting
-    QStringList parts;
-    bool inQuote = false;
-    QChar quoteChar;
-    QString current;
-    for (int i = 0; i < trimmed.size(); i++) {
-        QChar ch = trimmed[i];
-        if (inQuote) {
-            if (ch == quoteChar) {
-                inQuote = false;
-            } else {
-                current += ch;
-            }
-        } else if (ch == '"' || ch == '\'') {
-            inQuote = true;
-            quoteChar = ch;
-        } else if (ch == ' ' || ch == '\t') {
-            if (!current.isEmpty()) {
-                parts.append(current);
-                current.clear();
-            }
-        } else {
-            current += ch;
-        }
-    }
-    if (!current.isEmpty())
-        parts.append(current);
-
-    if (parts.isEmpty())
+    ensureStarted();
+    if (!mProcess || mProcess->state() == QProcess::NotRunning)
         return false;
 
-    QString program = parts.takeFirst();
-    runExternal(program, parts);
+    QByteArray command = commandLine.toLocal8Bit();
+#ifdef Q_OS_WIN
+    command.append("\r\n");
+#else
+    command.append('\n');
 #endif
-    return false; // returns true only for builtins
+    mProcess->write(command);
+    return true;
 }
 
 void TerminalProcess::stop()
 {
     if (mProcess && mProcess->state() != QProcess::NotRunning) {
-        mProcess->kill();
+#ifdef Q_OS_WIN
+        mProcess->write("exit\r\n");
+#else
+        mProcess->write("exit\n");
+#endif
+        mProcess->closeWriteChannel();
+        if (!mProcess->waitForFinished(1000))
+            mProcess->kill();
         mProcess->waitForFinished(2000);
+    }
+    if (mProcess) {
+        mProcess->deleteLater();
+        mProcess = nullptr;
     }
     mRunning = false;
 }
@@ -116,7 +108,25 @@ void TerminalProcess::setWorkingDirectory(const QString &path)
     if (d.exists()) {
         mCurrentDir = d;
         emit workingDirectoryChanged(mCurrentDir.absolutePath());
+        if (mProcess && mProcess->state() != QProcess::NotRunning) {
+#ifdef Q_OS_WIN
+            const QString command = QStringLiteral("cd /d \"%1\"\r\n").arg(QDir::toNativeSeparators(mCurrentDir.absolutePath()));
+#else
+            QString escaped = mCurrentDir.absolutePath();
+            escaped.replace('\'', "'\\''");
+            const QString command = QStringLiteral("cd '%1'\n").arg(escaped);
+#endif
+            mProcess->write(command.toLocal8Bit());
+        }
     }
+}
+
+void TerminalProcess::setExtraBinDirs(const QStringList &dirs)
+{
+    if (mExtraBinDirs == dirs)
+        return;
+    mExtraBinDirs = dirs;
+    stop();
 }
 
 bool TerminalProcess::handleBuiltin(const QString &line)
@@ -125,52 +135,38 @@ bool TerminalProcess::handleBuiltin(const QString &line)
         emit outputReady("<span class='terminal-clear'></span>");
         return true;
     }
-    if (line == "pwd" || line == "cwd") {
+    if (line == "cwd") {
         emit outputReady(mCurrentDir.absolutePath().toHtmlEscaped() + "\n");
-        return true;
-    }
-#ifdef Q_OS_WIN
-    const QString lowerLine = line.toLower();
-    if (lowerLine == "cd" || lowerLine == "chdir") {
-        emit outputReady(mCurrentDir.absolutePath().toHtmlEscaped() + "\n");
-        return true;
-    }
-    if (lowerLine.startsWith("cd ") || lowerLine.startsWith("chdir ")) {
-        QString path = line.mid(lowerLine.startsWith("cd ") ? 3 : 6).trimmed();
-        if (path.startsWith("/d ", Qt::CaseInsensitive))
-            path = path.mid(3).trimmed();
-#else
-    if (line == "cd") {
-        emit outputReady(mCurrentDir.absolutePath().toHtmlEscaped() + "\n");
-        return true;
-    }
-    if (line.startsWith("cd ")) {
-        QString path = line.mid(3).trimmed();
-#endif
-        // Remove surrounding quotes if present
-        if ((path.startsWith('"') && path.endsWith('"')) ||
-            (path.startsWith('\'') && path.endsWith('\'')))
-            path = path.mid(1, path.length() - 2);
-
-        QDir target(mCurrentDir);
-        if (target.cd(path)) {
-            mCurrentDir = target;
-            emit workingDirectoryChanged(mCurrentDir.absolutePath());
-        } else {
-            emit outputReady(QString("cd: no such directory: %1\n").arg(path.toHtmlEscaped()));
-        }
         return true;
     }
     return false;
 }
 
-void TerminalProcess::runExternal(const QString &program, const QStringList &args)
+void TerminalProcess::ensureStarted()
 {
-    stop();
+    if (!mProcess || mProcess->state() == QProcess::NotRunning)
+        startShell();
+}
 
+void TerminalProcess::startShell()
+{
+    if (mProcess)
+        mProcess->deleteLater();
     mProcess = new QProcess(this);
     mProcess->setWorkingDirectory(mCurrentDir.absolutePath());
     mProcess->setProcessChannelMode(QProcess::MergedChannels);
+
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    QString path = env.value("PATH");
+    QStringList pathAdded = mExtraBinDirs;
+    if (!pathAdded.isEmpty()) {
+        if (path.isEmpty())
+            path = pathAdded.join(PATH_SEPARATOR);
+        else
+            path = pathAdded.join(PATH_SEPARATOR) + PATH_SEPARATOR + path;
+        env.insert("PATH", path);
+    }
+    mProcess->setProcessEnvironment(env);
 
     connect(mProcess, &QProcess::started,
             this, &TerminalProcess::onProcessStarted);
@@ -182,7 +178,27 @@ void TerminalProcess::runExternal(const QString &program, const QStringList &arg
             this, &TerminalProcess::onProcessError);
 
     mPendingOutput.clear();
-    mProcess->start(program, args);
+    mProcess->start(shellProgram(), shellArguments());
+}
+
+QString TerminalProcess::shellProgram() const
+{
+#ifdef Q_OS_WIN
+    return windowsShellProgram();
+#else
+    return unixShellProgram();
+#endif
+}
+
+QStringList TerminalProcess::shellArguments() const
+{
+#ifdef Q_OS_WIN
+    return {QStringLiteral("/Q"), QStringLiteral("/K")};
+#else
+    if (QFileInfo(shellProgram()).fileName() == QLatin1String("sh"))
+        return QStringList();
+    return {QStringLiteral("-i")};
+#endif
 }
 
 void TerminalProcess::onProcessStarted()

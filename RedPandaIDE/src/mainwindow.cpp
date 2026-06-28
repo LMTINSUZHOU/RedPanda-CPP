@@ -4018,6 +4018,19 @@ void MainWindow::openShell(const QString &folder, const QString &shellCommand, c
     process.startDetached();
 }
 
+void MainWindow::openBuiltinTerminal(const QString &folder, const QStringList &binDirs)
+{
+    if (!mTerminalWidget)
+        return;
+    mTerminalWidget->setExtraBinDirs(binDirs);
+    if (!folder.isEmpty())
+        mTerminalWidget->setWorkingDirectory(folder);
+    showHideMessagesTab(mTerminalWidget, true);
+    ui->tabMessages->setCurrentWidget(mTerminalWidget);
+    stretchMessagesPanel(true);
+    mTerminalWidget->focusInput();
+}
+
 void MainWindow::onAutoSaveTimeout()
 {
     if (mQuitting)
@@ -5043,11 +5056,8 @@ void MainWindow::onFilesViewOpenInTerminal()
     QString path = mFileSystemModel->filePath(ui->treeFiles->currentIndex());
     if (!path.isEmpty()) {
         QFileInfo fileInfo(path);
-#ifdef Q_OS_WIN
-        openShell(fileInfo.path(),"cmd.exe",getDefaultCompilerSetBinDirs());
-#else
-        openShell(fileInfo.path(),pSettings->environment().terminalPath(),getDefaultCompilerSetBinDirs());
-#endif
+        openBuiltinTerminal(fileInfo.isDir() ? fileInfo.absoluteFilePath() : fileInfo.path(),
+                            getDefaultCompilerSetBinDirs());
     }
 }
 
@@ -7286,13 +7296,8 @@ void MainWindow::on_actionOpen_Terminal_triggered()
     Editor* editor = mEditorManager->getEditor();
     if (editor) {
         QFileInfo info(editor->filename());
-        if (!info.path().isEmpty()) {
-#ifdef Q_OS_WIN
-            openShell(info.path(),"cmd.exe",getBinDirsForCurrentEditor());
-#else
-            openShell(info.path(),pSettings->environment().terminalPath(),getBinDirsForCurrentEditor());
-#endif
-        }
+        if (!info.path().isEmpty())
+            openBuiltinTerminal(info.path(), getBinDirsForCurrentEditor());
     }
 
 }
@@ -7641,11 +7646,7 @@ void MainWindow::on_actionProject_Open_In_Terminal_triggered()
 {
     if (!mProject)
         return;
-#ifdef Q_OS_WIN
-    openShell(mProject->directory(),"cmd.exe",mProject->binDirs());
-#else
-    openShell(mProject->directory(),pSettings->environment().terminalPath(),mProject->binDirs());
-#endif
+    openBuiltinTerminal(mProject->directory(), mProject->binDirs());
 }
 
 const std::shared_ptr<QHash<StatementKind, std::shared_ptr<ColorSchemeItem> > > &MainWindow::statementColors() const

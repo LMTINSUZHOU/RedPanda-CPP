@@ -31,6 +31,7 @@ public:
     explicit TerminalWidget(QWidget *parent = nullptr);
 
     void setWorkingDirectory(const QString &path);
+    void setExtraBinDirs(const QStringList &dirs);
     QString workingDirectory() const;
     void focusInput();
 
@@ -46,7 +47,6 @@ private slots:
 private:
     void appendHtml(const QString &html);
     void navigateHistory(bool up);
-    void printPrompt();
 
     QPlainTextEdit *mOutput;
     QLineEdit *mInput;

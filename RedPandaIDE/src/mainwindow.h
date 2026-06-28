@@ -306,6 +306,7 @@ private:
     QStringList getBinDirsForCurrentEditor();
     QStringList getDefaultCompilerSetBinDirs();
     void openShell(const QString& folder, const QString& shellCommand, const QStringList& binDirs);
+    void openBuiltinTerminal(const QString &folder, const QStringList &binDirs = QStringList());
     QAction* createAction(const QString& text,
                           QWidget* parent,
                           QKeySequence shortcut=QKeySequence(),

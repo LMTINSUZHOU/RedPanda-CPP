@@ -21,7 +21,6 @@
 #include <QScrollBar>
 #include <QApplication>
 #include <QFont>
-#include <QDir>
 #include <QTextCursor>
 
 TerminalWidget::TerminalWidget(QWidget *parent)
@@ -63,13 +62,18 @@ TerminalWidget::TerminalWidget(QWidget *parent)
 
     mInput->installEventFilter(this);
 
-    printPrompt();
+    mProcess->ensureStarted();
     mInput->setFocus();
 }
 
 void TerminalWidget::setWorkingDirectory(const QString &path)
 {
     mProcess->setWorkingDirectory(path);
+}
+
+void TerminalWidget::setExtraBinDirs(const QStringList &dirs)
+{
+    mProcess->setExtraBinDirs(dirs);
 }
 
 QString TerminalWidget::workingDirectory() const
@@ -79,6 +83,7 @@ QString TerminalWidget::workingDirectory() const
 
 void TerminalWidget::focusInput()
 {
+    mProcess->ensureStarted();
     mInput->setFocus();
 }
 
@@ -115,12 +120,10 @@ void TerminalWidget::onCommandFinished(int exitCode)
         appendHtml(QString("<span style='color:#e06c75'>[exit code: %1]</span><br>")
                    .arg(exitCode));
     }
-    printPrompt();
 }
 
 void TerminalWidget::onProcessWdChanged(const QString &)
 {
-    // Prompt is printed by onCommandFinished or the next onInputReturn
 }
 
 void TerminalWidget::appendHtml(const QString &html)
@@ -129,23 +132,6 @@ void TerminalWidget::appendHtml(const QString &html)
     mOutput->textCursor().insertHtml(html);
     QScrollBar *sb = mOutput->verticalScrollBar();
     sb->setValue(sb->maximum());
-}
-
-void TerminalWidget::printPrompt()
-{
-    QString wd = mProcess->workingDirectory();
-    QStringList parts = wd.split(QDir::separator(), Qt::SkipEmptyParts);
-    QString shortPath;
-    if (parts.size() > 2) {
-        shortPath = QString("...%1%2%1%3")
-            .arg(QDir::separator(), parts[parts.size()-2], parts[parts.size()-1]);
-    } else {
-        shortPath = wd;
-    }
-
-    appendHtml(QString("<span style='color:#98c379'>%1</span>"
-                       "<span style='color:#61afef'> $ </span>")
-               .arg(shortPath.toHtmlEscaped()));
 }
 
 bool TerminalWidget::eventFilter(QObject *obj, QEvent *event)
@@ -164,7 +150,7 @@ bool TerminalWidget::eventFilter(QObject *obj, QEvent *event)
                 if (mInput->text().isEmpty()) {
                     mProcess->stop();
                     appendHtml("<span style='color:#e5c07b'>^C</span><br>");
-                    printPrompt();
+                    mProcess->ensureStarted();
                 }
                 return true;
             }
@@ -172,7 +158,6 @@ bool TerminalWidget::eventFilter(QObject *obj, QEvent *event)
         case Qt::Key_L:
             if (keyEvent->modifiers() == Qt::ControlModifier) {
                 mOutput->clear();
-                printPrompt();
                 return true;
             }
             break;

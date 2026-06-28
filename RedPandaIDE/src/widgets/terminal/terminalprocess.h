@@ -24,9 +24,8 @@
 #include <QStringList>
 #include <QDir>
 
-// Lightweight command-panel backend using QProcess.
-// Executes one command at a time. Built-in commands (cd, pwd, clear)
-// are handled internally since they need to affect terminal state.
+// Lightweight pipe-backed terminal using QProcess.
+// Keeps one shell process alive and writes submitted lines to its stdin.
 //
 // Not a full PTY terminal. For vim/htop/ssh support, implement a
 // PTY-based ITerminalBackend.
@@ -39,15 +38,17 @@ public:
     ~TerminalProcess();
 
     // Execute a command line. Returns true if accepted.
-    // Handles built-in commands internally.
+    // Handles UI-only built-in commands internally.
     bool execute(const QString &commandLine);
 
     // Stop the currently running process.
     void stop();
+    void ensureStarted();
 
     // Current working directory of the terminal session.
     QString workingDirectory() const;
     void setWorkingDirectory(const QString &path);
+    void setExtraBinDirs(const QStringList &dirs);
 
     QByteArray parseAnsiToHtml(const QByteArray &data);
 
@@ -65,10 +66,13 @@ private slots:
 
 private:
     bool handleBuiltin(const QString &line);
-    void runExternal(const QString &program, const QStringList &args);
+    void startShell();
+    QString shellProgram() const;
+    QStringList shellArguments() const;
 
     QProcess *mProcess = nullptr;
     QDir mCurrentDir;
+    QStringList mExtraBinDirs;
     QStringList mHistory;
     int mHistoryIndex = -1;
     QByteArray mPendingOutput;

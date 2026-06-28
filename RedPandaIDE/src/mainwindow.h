@@ -348,6 +348,7 @@ private:
     void updateProblemSetName();
     void saveProblemSet(const QString& filePath);
     void setEditorEncoding(Editor *e, const QByteArray &encoding);
+    bool prepareProblemSpj(POJProblem problem, QString *spjExecutable);
 
 private slots:
     void setupSlotsForProject();
@@ -403,6 +404,7 @@ private slots:
 
     void onProblemProperties();
     void onProblemOpenSource();
+    void onProblemOpenSpjSource();
     void onProblemRename();
     void onProblemGotoUrl();
 
@@ -1049,6 +1051,7 @@ private:
 
     //action for problem
     QAction * mProblem_OpenSource;
+    QAction * mProblem_OpenSpjSource;
     QAction * mProblem_Properties;
     QAction * mProblem_Rename;
     QAction * mProblem_GotoUrl;
@@ -1070,6 +1073,7 @@ private:
     QAction * mToolsOutput_Copy;
 
     QSortFilterProxyModel *mProjectProxyModel;
+    QString mCurrentProblemSpjProgram;
     
     // QWidget interface
 protected:

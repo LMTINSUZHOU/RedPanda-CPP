@@ -1,18 +1,17 @@
 #ifndef TEST_PROBLEMCASEVALIDATOR_H
 #define TEST_PROBLEMCASEVALIDATOR_H
 
-#include <QObject>
-
-class TestProblemCaseValidator : public QObject
+class TestProblemCaseValidator
 {
-    Q_OBJECT
+public:
+    bool run();
 
-private slots:
-    void exactComparisonKeepsExistingBehavior();
-    void ignoreSpacesComparisonKeepsExistingBehavior();
-    void customSpjAcceptsCheckerSuccess();
-    void customSpjRejectsCheckerFailure();
-    void customSpjRejectsMissingChecker();
+private:
+    bool exactComparisonKeepsExistingBehavior();
+    bool ignoreSpacesComparisonKeepsExistingBehavior();
+    bool customSpjAcceptsCheckerSuccess();
+    bool customSpjRejectsCheckerFailure();
+    bool customSpjRejectsMissingChecker();
 };
 
 #endif // TEST_PROBLEMCASEVALIDATOR_H

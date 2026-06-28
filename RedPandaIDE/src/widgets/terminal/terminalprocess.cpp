@@ -17,6 +17,22 @@
 
 #include "terminalprocess.h"
 
+#ifdef Q_OS_WIN
+#include <QProcessEnvironment>
+#endif
+
+namespace {
+
+#ifdef Q_OS_WIN
+QString windowsShellProgram()
+{
+    const QString comspec = QProcessEnvironment::systemEnvironment().value("COMSPEC");
+    return comspec.isEmpty() ? QStringLiteral("cmd.exe") : comspec;
+}
+#endif
+
+}
+
 TerminalProcess::TerminalProcess(QObject *parent)
     : QObject(parent)
     , mCurrentDir(QDir::current())
@@ -40,6 +56,9 @@ bool TerminalProcess::execute(const QString &commandLine)
     if (handleBuiltin(trimmed))
         return true;
 
+#ifdef Q_OS_WIN
+    runExternal(windowsShellProgram(), {"/d", "/s", "/c", trimmed});
+#else
     // Split into program + arguments, respecting quoting
     QStringList parts;
     bool inQuote = false;
@@ -73,6 +92,7 @@ bool TerminalProcess::execute(const QString &commandLine)
 
     QString program = parts.takeFirst();
     runExternal(program, parts);
+#endif
     return false; // returns true only for builtins
 }
 
@@ -109,8 +129,24 @@ bool TerminalProcess::handleBuiltin(const QString &line)
         emit outputReady(mCurrentDir.absolutePath().toHtmlEscaped() + "\n");
         return true;
     }
+#ifdef Q_OS_WIN
+    const QString lowerLine = line.toLower();
+    if (lowerLine == "cd" || lowerLine == "chdir") {
+        emit outputReady(mCurrentDir.absolutePath().toHtmlEscaped() + "\n");
+        return true;
+    }
+    if (lowerLine.startsWith("cd ") || lowerLine.startsWith("chdir ")) {
+        QString path = line.mid(lowerLine.startsWith("cd ") ? 3 : 6).trimmed();
+        if (path.startsWith("/d ", Qt::CaseInsensitive))
+            path = path.mid(3).trimmed();
+#else
+    if (line == "cd") {
+        emit outputReady(mCurrentDir.absolutePath().toHtmlEscaped() + "\n");
+        return true;
+    }
     if (line.startsWith("cd ")) {
         QString path = line.mid(3).trimmed();
+#endif
         // Remove surrounding quotes if present
         if ((path.startsWith('"') && path.endsWith('"')) ||
             (path.startsWith('\'') && path.endsWith('\'')))

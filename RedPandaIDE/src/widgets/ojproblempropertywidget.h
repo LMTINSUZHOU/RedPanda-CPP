@@ -18,6 +18,7 @@
 #define OJPROBLEMPROPERTYWIDGET_H
 
 #include <QDialog>
+#include <QString>
 #include <memory>
 
 namespace Ui {
@@ -33,7 +34,7 @@ class OJProblemPropertyWidget : public QDialog
 public:
     explicit OJProblemPropertyWidget(QWidget *parent = nullptr);
     ~OJProblemPropertyWidget();
-    void loadFromProblem(POJProblem problem);
+    void loadFromProblem(POJProblem problem, const QString &problemSetFile = QString());
     void saveToProblem(POJProblem problem);
 
 private slots:
@@ -45,6 +46,8 @@ private slots:
 
 private:
     Ui::OJProblemPropertyWidget *ui;
+    POJProblem mProblem;
+    QString mProblemSetFile;
 };
 
 #endif // OJPROBLEMPROPERTYWIDGET_H

@@ -2,9 +2,38 @@
 
 #include "../src/problems/problemcasevalidator.h"
 
-#include <QTest>
+#include <QDebug>
 
 namespace {
+
+bool reportFailure(const char *file, int line, const QString &message)
+{
+    qCritical().noquote() << QString("%1:%2: %3").arg(file).arg(line).arg(message);
+    return false;
+}
+
+#define CHECK_TRUE(expr) \
+    do { \
+        if (!(expr)) \
+            return reportFailure(__FILE__, __LINE__, QStringLiteral("Expected true: %1").arg(QStringLiteral(#expr))); \
+    } while (false)
+
+#define CHECK_FALSE(expr) \
+    do { \
+        if (expr) \
+            return reportFailure(__FILE__, __LINE__, QStringLiteral("Expected false: %1").arg(QStringLiteral(#expr))); \
+    } while (false)
+
+#define CHECK_EQ(actual, expected) \
+    do { \
+        const auto actualValue = (actual); \
+        const auto expectedValue = (expected); \
+        if (!(actualValue == expectedValue)) \
+            return reportFailure(__FILE__, __LINE__, \
+                QStringLiteral("Expected %1 == %2, got %3 and %4") \
+                    .arg(QStringLiteral(#actual), QStringLiteral(#expected)) \
+                    .arg(actualValue).arg(expectedValue)); \
+    } while (false)
 
 POJProblemCase makeCase(const QString& input, const QString& output, const QString& expected)
 {
@@ -22,47 +51,66 @@ QString checkerPath()
 
 }
 
-void TestProblemCaseValidator::exactComparisonKeepsExistingBehavior()
+bool TestProblemCaseValidator::run()
+{
+    return exactComparisonKeepsExistingBehavior()
+        && ignoreSpacesComparisonKeepsExistingBehavior()
+        && customSpjAcceptsCheckerSuccess()
+        && customSpjRejectsCheckerFailure()
+        && customSpjRejectsMissingChecker();
+}
+
+bool TestProblemCaseValidator::exactComparisonKeepsExistingBehavior()
 {
     ProblemCaseValidator validator;
 
     POJProblemCase problemCase = makeCase("", "hello\nworld\n", "hello\nworld\n");
-    QVERIFY(validator.validate(problemCase, ProblemCaseValidateType::Exact));
-    QCOMPARE(problemCase->firstDiffLine, -1);
+    CHECK_TRUE(validator.validate(problemCase, ProblemCaseValidateType::Exact));
+    CHECK_EQ(problemCase->firstDiffLine, -1);
 
     problemCase = makeCase("", "hello\nworld\n", "hello\nWorld\n");
-    QVERIFY(!validator.validate(problemCase, ProblemCaseValidateType::Exact));
-    QCOMPARE(problemCase->firstDiffLine, 1);
+    CHECK_FALSE(validator.validate(problemCase, ProblemCaseValidateType::Exact));
+    CHECK_EQ(problemCase->firstDiffLine, 1);
+
+    return true;
 }
 
-void TestProblemCaseValidator::ignoreSpacesComparisonKeepsExistingBehavior()
+bool TestProblemCaseValidator::ignoreSpacesComparisonKeepsExistingBehavior()
 {
     ProblemCaseValidator validator;
 
     POJProblemCase problemCase = makeCase("", "1   2\n3\t4\n", "1 2\n3 4\n");
-    QVERIFY(validator.validate(problemCase, ProblemCaseValidateType::IgnoreSpaces));
+    CHECK_TRUE(validator.validate(problemCase, ProblemCaseValidateType::IgnoreSpaces));
+
+    return true;
 }
 
-void TestProblemCaseValidator::customSpjAcceptsCheckerSuccess()
+bool TestProblemCaseValidator::customSpjAcceptsCheckerSuccess()
 {
     ProblemCaseValidator validator;
 
     POJProblemCase problemCase = makeCase("unused\n", "42\n", "40 45\n");
-    QVERIFY(validator.validate(problemCase, ProblemCaseValidateType::CustomSPJ, checkerPath()));
+    CHECK_TRUE(validator.validate(problemCase, ProblemCaseValidateType::CustomSPJ, checkerPath()));
+
+    return true;
 }
 
-void TestProblemCaseValidator::customSpjRejectsCheckerFailure()
+bool TestProblemCaseValidator::customSpjRejectsCheckerFailure()
 {
     ProblemCaseValidator validator;
 
     POJProblemCase problemCase = makeCase("unused\n", "50\n", "40 45\n");
-    QVERIFY(!validator.validate(problemCase, ProblemCaseValidateType::CustomSPJ, checkerPath()));
+    CHECK_FALSE(validator.validate(problemCase, ProblemCaseValidateType::CustomSPJ, checkerPath()));
+
+    return true;
 }
 
-void TestProblemCaseValidator::customSpjRejectsMissingChecker()
+bool TestProblemCaseValidator::customSpjRejectsMissingChecker()
 {
     ProblemCaseValidator validator;
 
     POJProblemCase problemCase = makeCase("unused\n", "42\n", "40 45\n");
-    QVERIFY(!validator.validate(problemCase, ProblemCaseValidateType::CustomSPJ, QString()));
+    CHECK_FALSE(validator.validate(problemCase, ProblemCaseValidateType::CustomSPJ, QString()));
+
+    return true;
 }

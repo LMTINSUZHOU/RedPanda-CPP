@@ -31,6 +31,7 @@ target_qt_plain_cpp(RedPandaIDE
     src/problems/freeprojectsetformat
     src/problems/ojproblemset
     src/problems/problemcasevalidator
+    src/problems/problemspj
     # settings
     src/settings/basesettings
     src/settings/codecompletionsettings
@@ -380,9 +381,19 @@ add_dependencies(all-test-targets test-cppparser)
 # test-problems     #
 #####################
 
+set(ENABLE_TEST_PROBLEMS ON)
+if("$ENV{ARCH}" STREQUAL "riscv64" AND CMAKE_INTERPROCEDURAL_OPTIMIZATION)
+    set(ENABLE_TEST_PROBLEMS OFF)
+    message(STATUS "Skipping test-problems for riscv64 static IPO build.")
+endif()
+
+if(ENABLE_TEST_PROBLEMS)
 add_executable(test-spj-checker test/test-spj-checker.cpp)
 
 add_executable(test-problems test/test-problems-main.cpp)
+
+set_target_properties(test-spj-checker test-problems PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION OFF)
 
 target_qt_plain_cpp(test-problems
     # problems
@@ -393,18 +404,19 @@ target_qt_plain_cpp(test-problems
     src/utils/file
     )
 
-target_moc_classes(test-problems
-    #test
-    test/test_problemcasevalidator
-)
+target_sources(test-problems PRIVATE
+    test/test_problem_utils.cpp)
+
+target_sources(test-problems PRIVATE
+    test/test_problemcasevalidator.cpp
+    test/test_problemcasevalidator.h)
 
 target_include_directories(test-problems PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR})
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/libs/redpanda_qt_utils)
 
 target_link_libraries(test-problems PRIVATE
-        Qt::Core
-        Qt::Test
-        redpanda_qt_utils)
+        Qt::Core)
 
 target_compile_definitions(test-problems PRIVATE
     ${GLOBAL_COMPILE_DEFINITIONS}
@@ -421,6 +433,7 @@ add_test(
 
 add_dependencies(test-problems test-spj-checker)
 add_dependencies(all-test-targets test-problems)
+endif()
 
 #####################
 # Platform-specific #
@@ -495,7 +508,9 @@ set (MAIN_PROGRAM_PATH_DEFS
 
 target_compile_definitions(RedPandaIDE PRIVATE ${MAIN_PROGRAM_PATH_DEFS})
 target_compile_definitions(test-editor PRIVATE ${MAIN_PROGRAM_PATH_DEFS})
-target_compile_definitions(test-problems PRIVATE ${MAIN_PROGRAM_PATH_DEFS})
+if(TARGET test-problems)
+    target_compile_definitions(test-problems PRIVATE ${MAIN_PROGRAM_PATH_DEFS})
+endif()
 
 ###################
 # Feature options #

@@ -261,6 +261,11 @@ void EnvironmentSettings::checkAndSetTerminal()
         QString term=termItem.terminal;
         term = replacePrefix(term, "%*APP_LIBEXEC_DIR*%", mDirSettings->appLibexecDir());
         term = replacePrefix(term, "%*APP_DIR*%", mDirSettings->appDir());
+        if (term.isEmpty()) {
+            mTerminalPath.clear();
+            mTerminalArgumentsPattern = termItem.param;
+            return;
+        }
         QFileInfo info{term};
         QString absoluteTerminalPath;
         if (info.isAbsolute()) {
@@ -273,7 +278,7 @@ void EnvironmentSettings::checkAndSetTerminal()
         } else {
             for (const QString &dirPath: pathList) {
                 QDir dir{dirPath};
-                absoluteTerminalPath = dir.absoluteFilePath(termItem.terminal);
+                absoluteTerminalPath = dir.absoluteFilePath(term);
                 if(fileExists(absoluteTerminalPath)) {
                     mTerminalPath = absoluteTerminalPath;
                     mTerminalArgumentsPattern = termItem.param;
@@ -325,10 +330,9 @@ QList<EnvironmentSettings::TerminalItem> EnvironmentSettings::loadTerminalList()
         for (const auto &terminal_ : terminals) {
             const QJsonObject terminal = terminal_.toObject();
             QString path = terminal["path"].toString();
-            QString termExecutable = QFileInfo(path).fileName();
             QString pattern = terminal["argsPattern"].toString();
             EnvironmentSettings::TerminalItem terminalItem;
-            path = replacePrefix(path, "%*APP_LIBEXEC_DIR*%", mDirSettings->appDir());
+            path = replacePrefix(path, "%*APP_LIBEXEC_DIR*%", mDirSettings->appLibexecDir());
             path = replacePrefix(path, "%*APP_DIR*%", mDirSettings->appDir());
             terminalItem.terminal = path;
             terminalItem.param = pattern;
@@ -349,10 +353,22 @@ bool EnvironmentSettings::isTerminalValid()
 
     if (!(patternItems.contains("$argv")
           || patternItems.contains("$command")
-          || patternItems.contains("$tmpfile"))) {
+          || patternItems.contains("$unix_command")
+          || patternItems.contains("$dos_command")
+          || patternItems.contains("$lpCommandLine")
+          || patternItems.contains("$tmpfile")
+          || patternItems.contains("$tmpfile.command")
+          || patternItems.contains("$tmpfile.sh")
+          || patternItems.contains("$tmpfile.bat"))) {
         // program not referenced
         return false;
     }
+
+    const bool usesTerminalProgram = patternItems.contains("$term")
+        || patternItems.contains("$integrated_term");
+    if (mTerminalPath.isEmpty())
+        return !usesTerminalProgram;
+
     QFileInfo termPathInfo{mTerminalPath};
     if (termPathInfo.isAbsolute()) {
         return termPathInfo.exists();

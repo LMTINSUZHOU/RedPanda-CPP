@@ -45,6 +45,7 @@
 #include <QScrollBar>
 #include <QTextDocumentFragment>
 #include <QActionGroup>
+#include <tuple>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
@@ -58,6 +59,7 @@
 #include "utils/escape.h"
 #include "utils/parsearg.h"
 #include "utils/parser.h"
+#include "utils/terminal.h"
 #include "utils/ui.h"
 #include "widgets/cpudialog.h"
 #include "widgets/filepropertiesdialog.h"
@@ -73,6 +75,7 @@
 #include "widgets/darkfusionstyle.h"
 #include "widgets/lightfusionstyle.h"
 #include "problems/problemcasevalidator.h"
+#include "problems/problemspj.h"
 #include "problems/freeprojectsetformat.h"
 #include "widgets/ojproblempropertywidget.h"
 #include "iconsmanager.h"
@@ -116,6 +119,12 @@ static int findTabIndex(QTabWidget* tabWidget , QWidget* w) {
             return i;
     }    
     return -1;
+}
+
+static bool isCppSourceFilename(const QString &filename)
+{
+    const QString suffix = QFileInfo(filename).suffix().toLower();
+    return suffix == "cpp" || suffix == "cc" || suffix == "cxx" || suffix == "c++";
 }
 
 MainWindow* pMainWindow;
@@ -2259,6 +2268,7 @@ void MainWindow::updateActionIcons()
     mProblem_OpenAnswer->setIcon(mIconsManager->getIcon(IconsManager::ACTION_PROBLEM_EDIT_SOURCE));
     mProblem_RunAllCases->setIcon(mIconsManager->getIcon(IconsManager::ACTION_PROBLEM_RUN_CASES));
     mProblem_CaseValidationOptions->setIcon(mIconsManager->getIcon(IconsManager::ACTION_MISC_GEAR));
+    mProblem_OpenSpjSource->setIcon(mIconsManager->getIcon(IconsManager::ACTION_PROBLEM_EDIT_SOURCE));
 
     mIconsManager->setIcon(ui->btnProblemCaseClearInputFileName, IconsManager::ACTION_MISC_CLEAN);
     mIconsManager->setIcon(ui->btnProblemCaseInputFileName, IconsManager::ACTION_MISC_FOLDER);
@@ -2509,6 +2519,8 @@ void MainWindow::runExecutable(
     } else if (runType == RunType::ProblemCases) {
         POJProblem problem = mOJProblemModel->problem();
         if (problem) {
+            if (!prepareProblemSpj(problem, &mCurrentProblemSpjProgram))
+                return;
             mCompilerManager->runProblem(exeName,params,QFileInfo(exeName).absolutePath(),
                                          problem->cases(),
                                          problem);
@@ -2520,6 +2532,8 @@ void MainWindow::runExecutable(
         if (index.isValid()) {
             POJProblemCase problemCase =mOJProblemModel->getCase(index.row());
             POJProblem problem = mOJProblemModel->problem();
+            if (!prepareProblemSpj(problem, &mCurrentProblemSpjProgram))
+                return;
             mCompilerManager->runProblem(exeName,params,QFileInfo(exeName).absolutePath(),
                                          problemCase,
                                          problem);
@@ -3024,6 +3038,12 @@ void MainWindow::createCustomActions()
                 ui->tabProblemSet);
     connect(mProblem_OpenSource, &QAction::triggered, this,
             &MainWindow::onProblemOpenSource);
+
+    mProblem_OpenSpjSource=createAction(
+                tr("Open/Create SPJ Source"),
+                ui->tabProblemSet);
+    connect(mProblem_OpenSpjSource, &QAction::triggered, this,
+            &MainWindow::onProblemOpenSpjSource);
 
     mProblem_Rename=createAction(
                 tr("Rename Problem"),
@@ -3956,8 +3976,26 @@ void MainWindow::openShell(const QString &folder, const QString &shellCommand, c
 {
     QProcess process;
     process.setWorkingDirectory(folder);
-    process.setProgram(shellCommand);
+    QString program = shellCommand;
+    QStringList arguments;
 #ifdef Q_OS_WIN
+    const QStringList shellPayload = {"cmd.exe", "/k"};
+    PNonExclusiveTemporaryFileOwner fileOwner;
+    if (pSettings->environment().useCustomTerminal()) {
+        std::tie(program, arguments, fileOwner) = wrapCommandForTerminalEmulator(
+            pSettings->environment().terminalPath(),
+            pSettings->environment().terminalArgumentsPattern(),
+            shellPayload,
+            &pSettings->dirs()
+        );
+    } else {
+        program = shellPayload.front();
+        arguments = shellPayload.mid(1);
+    }
+    if (program.isEmpty())
+        return;
+    process.setProgram(program);
+    process.setArguments(arguments);
     process.setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments * args){
         args->flags |= CREATE_NEW_CONSOLE;
         args->startupInfo->dwFlags &=  ~STARTF_USESTDHANDLES; //
@@ -3974,6 +4012,8 @@ void MainWindow::openShell(const QString &folder, const QString &shellCommand, c
     }
     env.insert("PATH",path);
     process.setProcessEnvironment(env);
+#else
+    process.setProgram(program);
 #endif
     process.startDetached();
 }
@@ -4425,11 +4465,14 @@ void MainWindow::onLstProblemSetContextMenu(const QPoint &pos)
         menu.addMenu(menuSetAnswer);
         mProblem_GotoUrl->setEnabled(!problem->url().isEmpty());
         mProblem_OpenSource->setEnabled(!problem->answerProgram().isEmpty());
+        mProblem_OpenSpjSource->setEnabled(true);
     } else {
         mProblem_GotoUrl->setEnabled(false);
         mProblem_OpenSource->setEnabled(false);
+        mProblem_OpenSpjSource->setEnabled(false);
     }
     menu.addAction(mProblem_OpenSource);
+    menu.addAction(mProblem_OpenSpjSource);
     menu.addAction(mProblem_Properties);
     menu.exec(ui->lstProblemSet->mapToGlobal(pos));
 }
@@ -4836,8 +4879,8 @@ void MainWindow::onProblemProperties()
     POJProblem problem=mOJProblemSetModel->problem(idx.row());
     if (!problem)
         return;
-    OJProblemPropertyWidget dialog;
-    dialog.loadFromProblem(problem);
+    OJProblemPropertyWidget dialog(this);
+    dialog.loadFromProblem(problem, mOJProblemSetModel->filePath());
     if (dialog.exec() == QDialog::Accepted) {
         dialog.saveToProblem(problem);
     }
@@ -4854,6 +4897,25 @@ void MainWindow::onProblemOpenSource()
     if (!problem->answerProgram().isEmpty()) {
         openFile(problem->answerProgram());
     }
+}
+
+void MainWindow::onProblemOpenSpjSource()
+{
+    QModelIndex idx = ui->lstProblemSet->currentIndex();
+    if (!idx.isValid())
+        return;
+    POJProblem problem=mOJProblemSetModel->problem(idx.row());
+    if (!problem)
+        return;
+
+    QString filename;
+    QString errorMessage;
+    if (!ProblemSpj::ensureSourceFile(problem, mOJProblemSetModel->filePath(), &filename, &errorMessage)) {
+        QMessageBox::critical(this, tr("Create SPJ Source Failed"), errorMessage);
+        return;
+    }
+    Editor *editor = openFile(filename);
+    mEditorManager->activeEditor(editor, true);
 }
 
 void MainWindow::onProblemRename()
@@ -6361,6 +6423,7 @@ void MainWindow::onRunPausingForFinish()
 
 void MainWindow::onRunProblemFinished()
 {
+    mCurrentProblemSpjProgram.clear();
     updateProblemTitle();
     ui->pbProblemCases->setVisible(false);
     updateCompileActions();
@@ -6394,11 +6457,10 @@ void MainWindow::onOJProblemCaseFinished(const QString& id, int current, int tot
     if (row>=0) {
         POJProblemCase problemCase = mOJProblemModel->getCase(row);
         ProblemCaseValidator validator;
-        POJProblem problem = mOJProblemModel->problem();
         problemCase->testState = validator.validate(
                     problemCase,
                     pSettings->executor().problemCaseValidateType(),
-                    problem ? problem->customSpjProgram() : QString())?
+                    mCurrentProblemSpjProgram)?
                     ProblemCaseTestState::Passed:
                     ProblemCaseTestState::Failed;
         mOJProblemModel->update(row);
@@ -8159,6 +8221,58 @@ void MainWindow::saveProblemSet(const QString &filePath)
         QMessageBox::critical(this,tr("Save Error"),
                               error.reason());
     }
+}
+
+bool MainWindow::prepareProblemSpj(POJProblem problem, QString *spjExecutable)
+{
+    if (spjExecutable)
+        spjExecutable->clear();
+    if (pSettings->executor().problemCaseValidateType() != ProblemCaseValidateType::CustomSPJ)
+        return true;
+    if (!problem)
+        return false;
+
+    QString spjSource = problem->customSpjProgram();
+    if (spjSource.isEmpty())
+        spjSource = ProblemSpj::sourceFile(problem, mOJProblemSetModel->filePath());
+
+    if (!fileExists(spjSource)) {
+        QMessageBox::critical(this,
+                              tr("SPJ Source Missing"),
+                              tr("Problem SPJ source file doesn't exist.")
+                              +"<br />"
+                              +tr("Use \"Open/Create SPJ Source\" to create %1.")
+                              .arg(ProblemSpj::displayPath(spjSource)));
+        return false;
+    }
+
+    if (!isCppSourceFilename(spjSource)) {
+        if (spjExecutable)
+            *spjExecutable = spjSource;
+        return true;
+    }
+
+    problem->setCustomSpjProgram(spjSource);
+    QString spjProgram = ProblemSpj::executableFile(spjSource);
+    const bool needsCompile = !fileExists(spjProgram)
+            || compareFileModifiedTime(spjSource, spjProgram) >= 0
+            || compareFileModifiedTime(spjProgram, pSettings->compilerSets().defaultIndexTimestamp()) <= 0;
+    if (needsCompile) {
+        QString errorMessage;
+        QString compilerOutput;
+        if (!ProblemSpj::compile(spjSource, &spjProgram, &errorMessage, &compilerOutput)) {
+            if (!compilerOutput.trimmed().isEmpty())
+                logToolsOutput(compilerOutput);
+            QMessageBox::critical(this, tr("Compile SPJ Failed"), errorMessage);
+            return false;
+        }
+        if (!compilerOutput.trimmed().isEmpty())
+            logToolsOutput(compilerOutput);
+    }
+
+    if (spjExecutable)
+        *spjExecutable = spjProgram;
+    return true;
 }
 
 void MainWindow::setEditorEncoding(Editor *e, const QByteArray &encoding)

@@ -401,6 +401,7 @@ target_qt_plain_cpp(test-problems
     # problems
     src/problems/ojproblemset
     src/problems/problemcasevalidator
+    src/problems/problemspj
 
     # utils
     src/utils/file
@@ -427,6 +428,7 @@ target_compile_definitions(test-problems PRIVATE
     REDPANDA_CPP_VERSION=\"${REDPANDA_VERSION}\"
     ARCH_X86_64=1
     ARCH_X86=1
+    PROBLEMSPJ_NO_COMPILER_SUPPORT
     TEST_SPJ_CHECKER_PATH=\"$<TARGET_FILE:test-spj-checker>\")
 
 add_test(

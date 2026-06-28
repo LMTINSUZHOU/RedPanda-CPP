@@ -18,6 +18,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QTextStream>
 
 QStringList textToLines(const QString &text)
@@ -65,6 +66,19 @@ bool stringToFile(const QString &str, const QString &fileName)
     return true;
 }
 
+bool copyFile(const QString &fromPath, const QString &toPath, bool overwrite)
+{
+    QFile fromFile(fromPath);
+    QFile toFile(toPath);
+    if (!fromFile.exists())
+        return false;
+    if (toFile.exists()) {
+        if (!overwrite || !toFile.remove())
+            return false;
+    }
+    return fromFile.copy(toPath);
+}
+
 bool fileExists(const QString &file)
 {
     return !file.isEmpty() && QFile::exists(file);
@@ -81,4 +95,20 @@ const QChar *getNullTerminatedStringData(const QString &str)
     if (result[str.size()] != QChar(0))
         result = str.data();
     return result;
+}
+
+QString getFilePath(const QString &folder, const QString &filename)
+{
+    return QDir(folder).filePath(filename);
+}
+
+int compareFileModifiedTime(const QString &filename1, const QString &filename2)
+{
+    const qint64 time1 = QFileInfo(filename1).lastModified().toMSecsSinceEpoch();
+    const qint64 time2 = QFileInfo(filename2).lastModified().toMSecsSinceEpoch();
+    if (time1 > time2)
+        return 1;
+    if (time1 < time2)
+        return -1;
+    return 0;
 }

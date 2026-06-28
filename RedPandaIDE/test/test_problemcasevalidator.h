@@ -12,6 +12,7 @@ private:
     bool customSpjAcceptsCheckerSuccess();
     bool customSpjRejectsCheckerFailure();
     bool customSpjRejectsMissingChecker();
+    bool problemSpjCreatesPerProblemSourceAndTestlib();
 };
 
 #endif // TEST_PROBLEMCASEVALIDATOR_H

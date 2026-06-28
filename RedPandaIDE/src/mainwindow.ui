@@ -1694,6 +1694,20 @@
               </widget>
              </item>
              <item>
+              <widget class="QToolButton" name="btnOpenProblemSpjSource">
+               <property name="toolTip">
+                <string>Open/Create SPJ Source</string>
+               </property>
+               <property name="text">
+                <string>Open/Create SPJ Source</string>
+               </property>
+               <property name="icon">
+                <iconset resource="R:/RedPanda-CPP-Qt5_64_Debug/RedPandaIDE/.qrc/iconsets.qrc">
+                 <normaloff>:/resources/iconsets/newlook/actions/08Problem-04EditSource.svg</normaloff>:/resources/iconsets/newlook/actions/08Problem-04EditSource.svg</iconset>
+               </property>
+              </widget>
+             </item>
+             <item>
               <widget class="Line" name="line">
                <property name="orientation">
                 <enum>Qt::Vertical</enum>

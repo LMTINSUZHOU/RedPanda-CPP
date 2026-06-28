@@ -89,9 +89,9 @@ void TerminalWidget::focusInput()
 
 void TerminalWidget::onInputReturn()
 {
-    QString line = mInput->text().trimmed();
+    QString line = mInput->text();
     mInput->clear();
-    if (line.isEmpty())
+    if (line.trimmed().isEmpty())
         return;
 
     // Add to history

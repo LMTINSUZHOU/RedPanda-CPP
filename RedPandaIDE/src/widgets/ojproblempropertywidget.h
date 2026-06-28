@@ -37,6 +37,9 @@ public:
     void loadFromProblem(POJProblem problem, const QString &problemSetFile = QString());
     void saveToProblem(POJProblem problem);
 
+signals:
+    void spjSourceReady(const QString &filename);
+
 private slots:
     void on_btnOk_clicked();
 

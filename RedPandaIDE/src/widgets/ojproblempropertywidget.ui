@@ -134,10 +134,10 @@
       <item>
        <widget class="QToolButton" name="btnBrowseCustomSpjProgram">
         <property name="toolTip">
-         <string>Create Problem SPJ Source</string>
+         <string>Open/Create Problem SPJ Source</string>
         </property>
         <property name="text">
-         <string>Create</string>
+         <string>Open</string>
         </property>
        </widget>
       </item>

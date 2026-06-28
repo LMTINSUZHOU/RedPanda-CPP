@@ -3396,6 +3396,7 @@ void MainWindow::initToolButtons()
     ui->btnAddProblemCase->setDefaultAction(mProblem_AddCase);
     ui->btnRemoveProblemCase->setDefaultAction(mProblem_RemoveCases);
     ui->btnOpenProblemAnswer->setDefaultAction(mProblem_OpenAnswer);
+    ui->btnOpenProblemSpjSource->setDefaultAction(mProblem_OpenSpjSource);
     ui->btnCaseValidateOptions->setDefaultAction(mProblem_CaseValidationOptions);
 
 
@@ -4529,8 +4530,10 @@ void MainWindow::onProblemSetIndexChanged(const QModelIndex &current, const QMod
         ui->lblProblem->clear();
         ui->lblProblem->setToolTip("");
         ui->tabProblem->setEnabled(false);
+        mProblem_OpenSpjSource->setEnabled(false);
     } else {
         mProblemSet_RemoveProblem->setEnabled(true);
+        mProblem_OpenSpjSource->setEnabled(true);
         POJProblem problem = mOJProblemSetModel->problem(idx.row());
         if (mFullInitialized) {
             if (problem && !problem->answerProgram().isEmpty()) {
@@ -4894,6 +4897,11 @@ void MainWindow::onProblemProperties()
         return;
     OJProblemPropertyWidget dialog(this);
     dialog.loadFromProblem(problem, mOJProblemSetModel->filePath());
+    connect(&dialog, &OJProblemPropertyWidget::spjSourceReady,
+            this, [this](const QString &filename) {
+        Editor *editor = openFile(filename);
+        mEditorManager->activeEditor(editor, true);
+    });
     if (dialog.exec() == QDialog::Accepted) {
         dialog.saveToProblem(problem);
     }

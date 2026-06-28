@@ -69,6 +69,9 @@ private:
     void startShell();
     QString shellProgram() const;
     QStringList shellArguments() const;
+    QByteArray lineEnding() const;
+    QString changeDirectoryCommand(const QString &path) const;
+    void writeCommand(const QString &command);
 
     QProcess *mProcess = nullptr;
     QDir mCurrentDir;

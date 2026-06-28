@@ -1,8 +1,12 @@
 #include "test_problemcasevalidator.h"
 
 #include "../src/problems/problemcasevalidator.h"
+#include "../src/problems/problemspj.h"
 
+#include <QDir>
 #include <QDebug>
+#include <QFileInfo>
+#include <QTemporaryDir>
 
 namespace {
 
@@ -57,7 +61,8 @@ bool TestProblemCaseValidator::run()
         && ignoreSpacesComparisonKeepsExistingBehavior()
         && customSpjAcceptsCheckerSuccess()
         && customSpjRejectsCheckerFailure()
-        && customSpjRejectsMissingChecker();
+        && customSpjRejectsMissingChecker()
+        && problemSpjCreatesPerProblemSourceAndTestlib();
 }
 
 bool TestProblemCaseValidator::exactComparisonKeepsExistingBehavior()
@@ -111,6 +116,42 @@ bool TestProblemCaseValidator::customSpjRejectsMissingChecker()
 
     POJProblemCase problemCase = makeCase("unused\n", "42\n", "40 45\n");
     CHECK_FALSE(validator.validate(problemCase, ProblemCaseValidateType::CustomSPJ, QString()));
+
+    return true;
+}
+
+bool TestProblemCaseValidator::problemSpjCreatesPerProblemSourceAndTestlib()
+{
+    QTemporaryDir dir;
+    CHECK_TRUE(dir.isValid());
+
+    const QString problemSetFile = QDir(dir.path()).absoluteFilePath("set.redpdp");
+    POJProblem firstProblem = std::make_shared<OJProblem>();
+    firstProblem->setName("中文 题目 A");
+    POJProblem secondProblem = std::make_shared<OJProblem>();
+    secondProblem->setName("中文 题目 B");
+
+    QString firstSource;
+    QString secondSource;
+    QString errorMessage;
+    CHECK_TRUE(ProblemSpj::ensureSourceFile(firstProblem, problemSetFile, &firstSource, &errorMessage));
+    CHECK_TRUE(errorMessage.isEmpty());
+    CHECK_TRUE(ProblemSpj::ensureSourceFile(secondProblem, problemSetFile, &secondSource, &errorMessage));
+    CHECK_TRUE(errorMessage.isEmpty());
+
+    const QDir redpdDir(QDir(dir.path()).absoluteFilePath(".redpd"));
+    CHECK_TRUE(redpdDir.exists());
+    CHECK_TRUE(QFileInfo(redpdDir.absoluteFilePath("testlib.h")).exists());
+    CHECK_TRUE(QFileInfo(firstSource).exists());
+    CHECK_TRUE(QFileInfo(secondSource).exists());
+    CHECK_TRUE(firstSource.endsWith("/spj.cpp"));
+    CHECK_TRUE(secondSource.endsWith("/spj.cpp"));
+    CHECK_FALSE(QFileInfo(redpdDir.absoluteFilePath("spj.cpp")).exists());
+    CHECK_FALSE(QFileInfo(firstSource).absolutePath() == QFileInfo(secondSource).absolutePath());
+    CHECK_TRUE(QFileInfo(firstSource).absolutePath().startsWith(redpdDir.absolutePath() + "/"));
+    CHECK_TRUE(QFileInfo(secondSource).absolutePath().startsWith(redpdDir.absolutePath() + "/"));
+    CHECK_EQ(firstProblem->customSpjProgram(), firstSource);
+    CHECK_EQ(secondProblem->customSpjProgram(), secondSource);
 
     return true;
 }

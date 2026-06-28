@@ -1,7 +1,9 @@
 #include "problemspj.h"
 
+#ifndef PROBLEMSPJ_NO_COMPILER_SUPPORT
 #include "../settings.h"
 #include "../settings/dirsettings.h"
+#endif
 #include "../systemconsts.h"
 #include "../utils.h"
 #include "../utils/file.h"
@@ -13,6 +15,7 @@
 #include <QJsonObject>
 #include <QProcess>
 #include <QProcessEnvironment>
+#include <QRegularExpression>
 
 namespace {
 
@@ -20,6 +23,7 @@ constexpr char RedPandaProblemDir[] = ".redpd";
 constexpr char SpjSourceName[] = "spj.cpp";
 constexpr char SpjExecutableBaseName[] = "spj";
 constexpr char SpjMetadataName[] = "spj.json";
+constexpr char TestlibHeaderName[] = "testlib.h";
 
 bool isCppSourceFilename(const QString &filename)
 {
@@ -30,9 +34,18 @@ bool isCppSourceFilename(const QString &filename)
 bool isRedPandaSpjSourceFile(const QString &filename)
 {
     QFileInfo info(filename);
-    return isCppSourceFilename(filename)
-            && info.fileName().compare(SpjSourceName, PATH_SENSITIVITY) == 0
-            && info.absoluteDir().dirName().compare(RedPandaProblemDir, PATH_SENSITIVITY) == 0;
+    if (!isCppSourceFilename(filename)
+            || info.fileName().compare(SpjSourceName, PATH_SENSITIVITY) != 0)
+        return false;
+
+    QDir dir(info.absolutePath());
+    while (!dir.isRoot()) {
+        if (dir.dirName().compare(RedPandaProblemDir, PATH_SENSITIVITY) == 0)
+            return true;
+        if (!dir.cdUp())
+            break;
+    }
+    return false;
 }
 
 QString problemBaseDirectory(const POJProblem &problem, const QString &problemSetFile)
@@ -44,26 +57,92 @@ QString problemBaseDirectory(const POJProblem &problem, const QString &problemSe
     return QDir::currentPath();
 }
 
+QString redPandaDataRootDirectory(const POJProblem &problem, const QString &problemSetFile)
+{
+    return QDir(problemBaseDirectory(problem, problemSetFile)).absoluteFilePath(RedPandaProblemDir);
+}
+
 QString testlibIncludeDir()
 {
-    QString includeDir = getFilePath(DirSettings::appResourceDir(), "include");
-    if (fileExists(getFilePath(includeDir, "testlib.h")))
+    QString includeDir;
+#ifndef PROBLEMSPJ_NO_COMPILER_SUPPORT
+    includeDir = getFilePath(DirSettings::appResourceDir(), "include");
+    if (fileExists(getFilePath(includeDir, TestlibHeaderName)))
         return includeDir;
+#endif
 
     includeDir = QFileInfo(QStringLiteral(__FILE__))
             .absoluteDir()
             .absoluteFilePath("../../resources/include");
     includeDir = QDir::cleanPath(includeDir);
-    if (fileExists(getFilePath(includeDir, "testlib.h")))
+    if (fileExists(getFilePath(includeDir, TestlibHeaderName)))
         return includeDir;
 
     return QString();
 }
 
+QString normalizePathSegment(const QString &value)
+{
+    QString result = value.trimmed();
+    if (result.startsWith('{') && result.endsWith('}') && result.length() > 2)
+        result = result.mid(1, result.length() - 2);
+    result.replace(QRegularExpression(QStringLiteral("[\\\\/:*?\"<>|\\s]+")), QStringLiteral("_"));
+    result.replace(QRegularExpression(QStringLiteral("_+")), QStringLiteral("_"));
+    result = result.trimmed();
+    while (result.startsWith('.'))
+        result.remove(0, 1);
+    while (result.endsWith('.'))
+        result.chop(1);
+    if (result.isEmpty())
+        result = QStringLiteral("problem");
+    return result;
+}
+
+QString problemDataSubdirectoryName(const POJProblem &problem)
+{
+    if (problem && !problem->id().isEmpty())
+        return normalizePathSegment(problem->id());
+    if (problem && !problem->name().isEmpty())
+        return normalizePathSegment(problem->name());
+    return QStringLiteral("problem");
+}
+
+QString testlibHeaderFile()
+{
+    const QString includeDir = testlibIncludeDir();
+    if (includeDir.isEmpty())
+        return QString();
+    return getFilePath(includeDir, TestlibHeaderName);
+}
+
+bool ensureLocalTestlib(const QString &dirPath, QString *errorMessage)
+{
+    const QString sourceFile = testlibHeaderFile();
+    if (sourceFile.isEmpty()) {
+        if (errorMessage)
+            *errorMessage = QObject::tr("Can't find testlib.h.");
+        return false;
+    }
+
+    const QString targetFile = QDir(dirPath).absoluteFilePath(TestlibHeaderName);
+    if (fileExists(targetFile)
+            && compareFileModifiedTime(sourceFile, targetFile) <= 0)
+        return true;
+
+    if (!copyFile(sourceFile, targetFile, true)) {
+        if (errorMessage)
+            *errorMessage = QObject::tr("Can't copy testlib.h to \"%1\".").arg(dirPath);
+        return false;
+    }
+    return true;
+}
+
 QString defaultSpjSource()
 {
     return QStringLiteral(
-R"(int main(int argc, char *argv[])
+R"(#include "../testlib.h"
+
+int main(int argc, char *argv[])
 {
     registerTestlibCmd(argc, argv);
 
@@ -82,6 +161,7 @@ R"(int main(int argc, char *argv[])
 
 void setProcessPath(QProcess &process, const QString &compiler)
 {
+#ifndef PROBLEMSPJ_NO_COMPILER_SUPPORT
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     QStringList pathDirs;
     const QString compilerDir = QFileInfo(compiler).absolutePath();
@@ -100,6 +180,10 @@ void setProcessPath(QProcess &process, const QString &compiler)
         env.insert("PATH", path);
     }
     process.setProcessEnvironment(env);
+#else
+    Q_UNUSED(process);
+    Q_UNUSED(compiler);
+#endif
 }
 
 }
@@ -110,7 +194,8 @@ QString dataDirectory(const POJProblem &problem, const QString &problemSetFile)
 {
     if (problem && isRedPandaSpjSourceFile(problem->customSpjProgram()))
         return QFileInfo(problem->customSpjProgram()).absolutePath();
-    return QDir(problemBaseDirectory(problem, problemSetFile)).absoluteFilePath(RedPandaProblemDir);
+    QDir dir(redPandaDataRootDirectory(problem, problemSetFile));
+    return dir.absoluteFilePath(problemDataSubdirectoryName(problem));
 }
 
 QString sourceFile(const POJProblem &problem, const QString &problemSetFile)
@@ -123,8 +208,10 @@ QString sourceFile(const POJProblem &problem, const QString &problemSetFile)
 QString executableFile(const QString &sourceFile)
 {
     QString suffix = DEFAULT_EXECUTABLE_SUFFIX;
+#ifndef PROBLEMSPJ_NO_COMPILER_SUPPORT
     if (pSettings && pSettings->compilerSets().defaultSet())
         suffix = pSettings->compilerSets().defaultSet()->executableSuffix();
+#endif
     return QDir(QFileInfo(sourceFile).absolutePath()).absoluteFilePath(SpjExecutableBaseName + suffix);
 }
 
@@ -146,6 +233,15 @@ bool ensureSourceFile(const POJProblem &problem,
                       QString *errorMessage)
 {
     const QString filename = sourceFile(problem, problemSetFile);
+    QDir rootDir(redPandaDataRootDirectory(problem, problemSetFile));
+    if (!rootDir.exists() && !rootDir.mkpath(QStringLiteral("."))) {
+        if (errorMessage)
+            *errorMessage = QObject::tr("Can't create folder \"%1\".").arg(rootDir.absolutePath());
+        return false;
+    }
+    if (!ensureLocalTestlib(rootDir.absolutePath(), errorMessage))
+        return false;
+
     QDir dir(QFileInfo(filename).absolutePath());
     if (!dir.exists() && !dir.mkpath(QStringLiteral("."))) {
         if (errorMessage)
@@ -196,6 +292,14 @@ bool compile(const QString &sourceFile,
              QString *errorMessage,
              QString *compilerOutput)
 {
+#ifdef PROBLEMSPJ_NO_COMPILER_SUPPORT
+    Q_UNUSED(sourceFile);
+    Q_UNUSED(outExecutableFile);
+    Q_UNUSED(compilerOutput);
+    if (errorMessage)
+        *errorMessage = QObject::tr("SPJ compilation is not available in this build.");
+    return false;
+#else
     if (sourceFile.isEmpty() || !fileExists(sourceFile)) {
         if (errorMessage)
             *errorMessage = QObject::tr("SPJ source file doesn't exist.");
@@ -231,6 +335,12 @@ bool compile(const QString &sourceFile,
         return false;
     }
     arguments << "-I" + includeDir;
+    QDir sourceDir(QFileInfo(sourceFile).absolutePath());
+    if (fileExists(sourceDir.absoluteFilePath(TestlibHeaderName)))
+        arguments << "-I" + sourceDir.absolutePath();
+    QDir sourceParentDir(sourceDir);
+    if (sourceParentDir.cdUp() && fileExists(sourceParentDir.absoluteFilePath(TestlibHeaderName)))
+        arguments << "-I" + sourceParentDir.absolutePath();
     arguments << "-include" << "testlib.h";
     arguments << sourceFile << "-o" << outputFile;
 
@@ -253,8 +363,8 @@ bool compile(const QString &sourceFile,
         return false;
     }
 
-    const QString standardOutput = QString::fromLocal8Bit(process.readAllStandardOutput());
-    const QString standardError = QString::fromLocal8Bit(process.readAllStandardError());
+    const QString standardOutput = fromByteArray(process.readAllStandardOutput());
+    const QString standardError = fromByteArray(process.readAllStandardError());
     if (compilerOutput)
         *compilerOutput = standardOutput + standardError;
 
@@ -272,6 +382,7 @@ bool compile(const QString &sourceFile,
     if (outExecutableFile)
         *outExecutableFile = outputFile;
     return true;
+#endif
 }
 
 }

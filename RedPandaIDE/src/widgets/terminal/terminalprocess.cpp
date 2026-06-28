@@ -21,12 +21,18 @@
 
 #include <QFileInfo>
 #include <QProcessEnvironment>
+#include <QStandardPaths>
 
 namespace {
 
 #ifdef Q_OS_WIN
 QString windowsShellProgram()
 {
+    const QString shell = QProcessEnvironment::systemEnvironment().value("SHELL");
+    if (!shell.isEmpty()
+            && (QFileInfo(shell).exists()
+                || !QStandardPaths::findExecutable(shell).isEmpty()))
+        return shell;
     const QString comspec = QProcessEnvironment::systemEnvironment().value("COMSPEC");
     return comspec.isEmpty() ? QStringLiteral("cmd.exe") : comspec;
 }
@@ -37,6 +43,64 @@ QString unixShellProgram()
     return shell.isEmpty() ? QStringLiteral("/bin/sh") : shell;
 }
 #endif
+
+QString shellBaseName(const QString &program)
+{
+    return QFileInfo(program).fileName().toLower();
+}
+
+bool isCmdShell(const QString &program)
+{
+    const QString name = shellBaseName(program);
+    return name == QLatin1String("cmd") || name == QLatin1String("cmd.exe");
+}
+
+bool isPowerShell(const QString &program)
+{
+    const QString name = shellBaseName(program);
+    return name == QLatin1String("powershell")
+            || name == QLatin1String("powershell.exe")
+            || name == QLatin1String("pwsh")
+            || name == QLatin1String("pwsh.exe");
+}
+
+bool isBourneShell(const QString &program)
+{
+    const QString name = shellBaseName(program);
+    return name == QLatin1String("bash")
+            || name == QLatin1String("bash.exe")
+            || name == QLatin1String("zsh")
+            || name == QLatin1String("zsh.exe")
+            || name == QLatin1String("sh")
+            || name == QLatin1String("sh.exe")
+            || name == QLatin1String("dash")
+            || name == QLatin1String("dash.exe")
+            || name == QLatin1String("ksh")
+            || name == QLatin1String("ksh.exe")
+            || name == QLatin1String("fish")
+            || name == QLatin1String("fish.exe");
+}
+
+QString defaultUtf8Locale()
+{
+#if defined(Q_OS_MACOS) || defined(Q_OS_FREEBSD) || defined(Q_OS_OPENBSD) || defined(Q_OS_NETBSD)
+    return QStringLiteral("en_US.UTF-8");
+#else
+    return QStringLiteral("C.UTF-8");
+#endif
+}
+
+QString quoteBournePath(QString path)
+{
+    path.replace('\'', "'\\''");
+    return QStringLiteral("'%1'").arg(path);
+}
+
+QString quotePowerShellPath(QString path)
+{
+    path.replace('\'', "''");
+    return QStringLiteral("'%1'").arg(path);
+}
 
 }
 
@@ -57,7 +121,7 @@ bool TerminalProcess::execute(const QString &commandLine)
     if (trimmed.isEmpty())
         return false;
 
-    mHistory.append(trimmed);
+    mHistory.append(commandLine);
     mHistoryIndex = mHistory.size();
 
     if (handleBuiltin(trimmed))
@@ -67,24 +131,14 @@ bool TerminalProcess::execute(const QString &commandLine)
     if (!mProcess || mProcess->state() == QProcess::NotRunning)
         return false;
 
-    QByteArray command = commandLine.toLocal8Bit();
-#ifdef Q_OS_WIN
-    command.append("\r\n");
-#else
-    command.append('\n');
-#endif
-    mProcess->write(command);
+    writeCommand(commandLine);
     return true;
 }
 
 void TerminalProcess::stop()
 {
     if (mProcess && mProcess->state() != QProcess::NotRunning) {
-#ifdef Q_OS_WIN
-        mProcess->write("exit\r\n");
-#else
-        mProcess->write("exit\n");
-#endif
+        writeCommand(QStringLiteral("exit"));
         mProcess->closeWriteChannel();
         if (!mProcess->waitForFinished(1000))
             mProcess->kill();
@@ -109,14 +163,7 @@ void TerminalProcess::setWorkingDirectory(const QString &path)
         mCurrentDir = d;
         emit workingDirectoryChanged(mCurrentDir.absolutePath());
         if (mProcess && mProcess->state() != QProcess::NotRunning) {
-#ifdef Q_OS_WIN
-            const QString command = QStringLiteral("cd /d \"%1\"\r\n").arg(QDir::toNativeSeparators(mCurrentDir.absolutePath()));
-#else
-            QString escaped = mCurrentDir.absolutePath();
-            escaped.replace('\'', "'\\''");
-            const QString command = QStringLiteral("cd '%1'\n").arg(escaped);
-#endif
-            mProcess->write(command.toLocal8Bit());
+            writeCommand(changeDirectoryCommand(mCurrentDir.absolutePath()));
         }
     }
 }
@@ -157,6 +204,11 @@ void TerminalProcess::startShell()
     mProcess->setProcessChannelMode(QProcess::MergedChannels);
 
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    const QString utf8Locale = defaultUtf8Locale();
+    if (env.value("LANG").isEmpty())
+        env.insert("LANG", utf8Locale);
+    if (env.value("LC_CTYPE").isEmpty())
+        env.insert("LC_CTYPE", utf8Locale);
     QString path = env.value("PATH");
     QStringList pathAdded = mExtraBinDirs;
     if (!pathAdded.isEmpty()) {
@@ -192,13 +244,61 @@ QString TerminalProcess::shellProgram() const
 
 QStringList TerminalProcess::shellArguments() const
 {
+    const QString program = shellProgram();
 #ifdef Q_OS_WIN
-    return {QStringLiteral("/Q"), QStringLiteral("/K")};
+    if (isPowerShell(program)) {
+        return {
+            QStringLiteral("-NoLogo"),
+            QStringLiteral("-NoExit"),
+            QStringLiteral("-NoProfile"),
+            QStringLiteral("-ExecutionPolicy"),
+            QStringLiteral("Bypass"),
+            QStringLiteral("-Command"),
+            QStringLiteral("$utf8 = New-Object System.Text.UTF8Encoding $false; [Console]::InputEncoding = $utf8; [Console]::OutputEncoding = $utf8; $OutputEncoding = $utf8")
+        };
+    }
+    if (isCmdShell(program))
+        return {QStringLiteral("/Q"), QStringLiteral("/K"), QStringLiteral("chcp 65001>nul")};
+    if (isBourneShell(program))
+        return {QStringLiteral("-i")};
+    return QStringList();
 #else
-    if (QFileInfo(shellProgram()).fileName() == QLatin1String("sh"))
+    const QString name = shellBaseName(program);
+    if (name == QLatin1String("sh"))
         return QStringList();
     return {QStringLiteral("-i")};
 #endif
+}
+
+QByteArray TerminalProcess::lineEnding() const
+{
+#ifdef Q_OS_WIN
+    const QString program = shellProgram();
+    if (isCmdShell(program) || isPowerShell(program))
+        return "\r\n";
+#endif
+    return "\n";
+}
+
+QString TerminalProcess::changeDirectoryCommand(const QString &path) const
+{
+    const QString program = shellProgram();
+#ifdef Q_OS_WIN
+    if (isPowerShell(program))
+        return QStringLiteral("Set-Location -LiteralPath %1").arg(quotePowerShellPath(QDir::toNativeSeparators(path)));
+    if (isCmdShell(program))
+        return QStringLiteral("cd /d \"%1\"").arg(QDir::toNativeSeparators(path));
+#endif
+    return QStringLiteral("cd %1").arg(quoteBournePath(path));
+}
+
+void TerminalProcess::writeCommand(const QString &command)
+{
+    if (!mProcess || mProcess->state() == QProcess::NotRunning)
+        return;
+    QByteArray data = command.toUtf8();
+    data.append(lineEnding());
+    mProcess->write(data);
 }
 
 void TerminalProcess::onProcessStarted()
@@ -210,7 +310,7 @@ void TerminalProcess::onReadyReadStdout()
 {
     if (!mProcess) return;
     QByteArray data = mProcess->readAll();
-    emit outputReady(parseAnsiToHtml(data));
+    emit outputReady(QString::fromUtf8(parseAnsiToHtml(data)));
 }
 
 void TerminalProcess::onReadyReadStderr()
@@ -225,7 +325,7 @@ void TerminalProcess::onProcessFinished(int exitCode, QProcess::ExitStatus)
         // Flush any remaining output
         QByteArray remaining = mProcess->readAll();
         if (!remaining.isEmpty())
-            emit outputReady(parseAnsiToHtml(remaining));
+            emit outputReady(QString::fromUtf8(parseAnsiToHtml(remaining)));
         mProcess->deleteLater();
         mProcess = nullptr;
     }

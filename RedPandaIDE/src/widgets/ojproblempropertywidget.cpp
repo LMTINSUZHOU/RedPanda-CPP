@@ -126,4 +126,5 @@ void OJProblemPropertyWidget::on_btnBrowseCustomSpjProgram_clicked()
         return;
     }
     ui->txtCustomSpjProgram->setText(ProblemSpj::displayPath(filename));
+    emit spjSourceReady(filename);
 }

@@ -382,9 +382,10 @@ add_dependencies(all-test-targets test-cppparser)
 #####################
 
 set(ENABLE_TEST_PROBLEMS ON)
-if("$ENV{ARCH}" STREQUAL "riscv64" AND CMAKE_INTERPROCEDURAL_OPTIMIZATION)
+if(("$ENV{ARCH}" STREQUAL "aarch64" OR "$ENV{ARCH}" STREQUAL "riscv64")
+        AND CMAKE_INTERPROCEDURAL_OPTIMIZATION)
     set(ENABLE_TEST_PROBLEMS OFF)
-    message(STATUS "Skipping test-problems for riscv64 static IPO build.")
+    message(STATUS "Skipping test-problems for $ENV{ARCH} static IPO build.")
 endif()
 
 if(ENABLE_TEST_PROBLEMS)
